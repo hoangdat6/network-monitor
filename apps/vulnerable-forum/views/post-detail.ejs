@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= post.title %> - Forum</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <h1><a href="/">Forum</a></h1>
+                </div>
+                
+                <form class="search-form" action="/" method="GET">
+                    <input 
+                        type="text" 
+                        name="search" 
+                        placeholder="Tìm kiếm bài viết..." 
+                        value=""
+                    >
+                    <button type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+                
+                <div class="nav-links">
+                    <a href="/" class="btn btn-secondary">
+                        <i class="fas fa-home"></i> Trang chủ
+                    </a>
+                    <a href="/create" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Viết bài
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <nav style="margin-bottom: 2rem;">
+                <a href="/" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Quay lại danh sách
+                </a>
+            </nav>
+
+            <article class="post-detail">
+                <h1><%= post.title %></h1>
+                
+                <div class="post-meta">
+                    <span>
+                        <i class="fas fa-user"></i> 
+                        <strong><%= post.author %></strong>
+                    </span>
+                    <span>
+                        <i class="fas fa-calendar"></i> 
+                        <%= new Date(post.created_at).toLocaleDateString('vi-VN', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }) %>
+                    </span>
+                </div>
+                
+                <div class="post-content">
+                    <%= post.content %>
+                </div>
+            </article>
+
+            <section class="comments-section">
+                <h2 class="comments-title">
+                    <i class="fas fa-comments"></i> 
+                    Bình luận (<%= comments.length %>)
+                </h2>
+                
+                <% if (comments && comments.length > 0) { %>
+                    <div class="comments-list">
+                        <% comments.forEach(comment => { %>
+                            <div class="comment">
+                                <div class="comment-author">
+                                    <i class="fas fa-user-circle"></i> <%= comment.author %>
+                                </div>
+                                <div class="comment-date">
+                                    <%= new Date(comment.created_at).toLocaleDateString('vi-VN', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    }) %>
+                                </div>
+                                <div class="comment-content">
+                                    <%= comment.content %>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+                <% } else { %>
+                    <div style="text-align: center; padding: 2rem; color: #6c757d;">
+                        <i class="fas fa-comment-slash" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                        <p>Chưa có bình luận nào. Hãy là người đầu tiên bình luận!</p>
+                    </div>
+                <% } %>
+                
+                <div class="comment-form">
+                    <h3>Thêm bình luận</h3>
+                    <form action="/post/<%= post.id %>/comment" method="POST" data-validate>
+                        <div class="form-group">
+                            <label for="author">
+                                <i class="fas fa-user"></i> Tên của bạn
+                            </label>
+                            <input 
+                                type="text" 
+                                id="author" 
+                                name="author" 
+                                required 
+                                placeholder="Nhập tên của bạn..."
+                                maxlength="100"
+                            >
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="content">
+                                <i class="fas fa-comment"></i> Nội dung bình luận
+                            </label>
+                            <textarea 
+                                id="content" 
+                                name="content" 
+                                required 
+                                placeholder="Nhập bình luận của bạn..."
+                                maxlength="1000"
+                                rows="4"
+                            ></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Gửi bình luận
+                        </button>
+                    </form>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        // Simple JavaScript for enhanced UX
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-focus search input when pressing '/' key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === '/' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    const searchInput = document.querySelector('.search-form input');
+                    if (searchInput) {
+                        searchInput.focus();
+                        searchInput.select();
+                    }
+                }
+            });
+
+            // Form validation
+            const forms = document.querySelectorAll('form[data-validate]');
+            forms.forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    const requiredFields = form.querySelectorAll('[required]');
+                    let isValid = true;
+
+                    requiredFields.forEach(field => {
+                        if (!field.value.trim()) {
+                            isValid = false;
+                            field.style.borderColor = '#dc3545';
+                        } else {
+                            field.style.borderColor = '#e9ecef';
+                        }
+                    });
+
+                    if (!isValid) {
+                        e.preventDefault();
+                        alert('Vui lòng điền đầy đủ thông tin!');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

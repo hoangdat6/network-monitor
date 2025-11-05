@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo bài viết mới - Forum</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <h1><a href="/">Forum</a></h1>
+                </div>
+                
+                <form class="search-form" action="/" method="GET">
+                    <input 
+                        type="text" 
+                        name="search" 
+                        placeholder="Tìm kiếm bài viết..." 
+                        value=""
+                    >
+                    <button type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+                
+                <div class="nav-links">
+                    <a href="/" class="btn btn-secondary">
+                        <i class="fas fa-home"></i> Trang chủ
+                    </a>
+                    <a href="/create" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Viết bài
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <nav style="margin-bottom: 2rem;">
+                <a href="/" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Quay lại trang chủ
+                </a>
+            </nav>
+
+            <div class="form-container">
+                <h1 class="page-title">
+                    <i class="fas fa-edit"></i> Tạo bài viết mới
+                </h1>
+                
+                <form action="/create" method="POST" data-validate>
+                    <div class="form-group">
+                        <label for="title">
+                            <i class="fas fa-heading"></i> Tiêu đề bài viết
+                        </label>
+                        <input 
+                            type="text" 
+                            id="title" 
+                            name="title" 
+                            required 
+                            placeholder="Nhập tiêu đề bài viết..."
+                            maxlength="200"
+                        >
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="author">
+                            <i class="fas fa-user"></i> Tác giả
+                        </label>
+                        <input 
+                            type="text" 
+                            id="author" 
+                            name="author" 
+                            required 
+                            placeholder="Nhập tên tác giả..."
+                            maxlength="100"
+                        >
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="content">
+                            <i class="fas fa-align-left"></i> Nội dung bài viết
+                        </label>
+                        <textarea 
+                            id="content" 
+                            name="content" 
+                            required 
+                            placeholder="Viết nội dung bài viết của bạn tại đây..."
+                            rows="15"
+                            maxlength="5000"
+                        ></textarea>
+                    </div>
+                    
+                    <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+                        <a href="/" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Hủy
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Đăng bài viết
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div style="background: #f8f9fa; border-radius: 10px; padding: 1.5rem; margin-top: 2rem; border-left: 4px solid #17a2b8;">
+                <h4 style="color: #17a2b8; margin-bottom: 1rem;">
+                    <i class="fas fa-lightbulb"></i> Mẹo viết bài
+                </h4>
+                <ul style="color: #6c757d; line-height: 1.6;">
+                    <li>Sử dụng tiêu đề rõ ràng và thu hút</li>
+                    <li>Viết nội dung dễ hiểu và có cấu trúc</li>
+                    <li>Chia đoạn văn để dễ đọc</li>
+                    <li>Kiểm tra chính tả trước khi đăng</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Simple JavaScript for enhanced UX
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-focus search input when pressing '/' key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === '/' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    const searchInput = document.querySelector('.search-form input');
+                    if (searchInput) {
+                        searchInput.focus();
+                        searchInput.select();
+                    }
+                }
+            });
+
+            // Form validation
+            const forms = document.querySelectorAll('form[data-validate]');
+            forms.forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    const requiredFields = form.querySelectorAll('[required]');
+                    let isValid = true;
+
+                    requiredFields.forEach(field => {
+                        if (!field.value.trim()) {
+                            isValid = false;
+                            field.style.borderColor = '#dc3545';
+                        } else {
+                            field.style.borderColor = '#e9ecef';
+                        }
+                    });
+
+                    if (!isValid) {
+                        e.preventDefault();
+                        alert('Vui lòng điền đầy đủ thông tin!');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

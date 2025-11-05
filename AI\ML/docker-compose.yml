@@ -1,0 +1,37 @@
+services:
+  log-nginx-to-csv:
+    build: ./kafka-topic-to-csv
+    container_name: ids_log_csv
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_TOPIC=nginx-logs
+      - CSV_FILE=/data/access_logs.csv
+    volumes:
+      - ./kafka-topic-to-csv/log_consumer.py:/app/log_consumer.py:ro
+      - ./data:/data   # log CSV sẽ lưu ở ./data/access_logs.csv
+    restart: always
+    networks:
+      - monitoring_network
+
+  log-metrics-to-csv:
+    build: ./kafka-topic-to-csv
+    container_name: ids_log_metrics_csv
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_TOPIC=node_metrics_flat
+      - CSV_FILE=/data/metrics_snapshots.csv
+      - CSV_FIELDS=timestamp,cpu_usage,memory_usage,disk_usage,network_rx,network_tx
+    volumes:
+      - ./kafka-topic-to-csv/log_consumer.py:/app/log_consumer.py:ro
+      - ./data:/data   # log CSV sẽ lưu ở ./data/metrics_snapshots.csv
+    restart: always
+    networks:
+      - monitoring_network
+
+volumes:
+  nginx_logs:
+    external: true
+
+networks:
+  monitoring_network:
+    external: true
