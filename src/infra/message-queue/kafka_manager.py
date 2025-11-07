@@ -44,49 +44,247 @@ logger = logging.getLogger(__name__)
 
 class KafkaManager:
     """
-    Manage Kafka topics, producers, and consumers
+    Enhanced Kafka Manager for Docker Environment
+    
+    Features:
+    - Docker-aware configuration
+    - Health checking và auto-recovery
+    - Performance monitoring
+    - Topic management với best practices
     """
     
-    # Topic configurations
+    # Enhanced topic configurations aligned với Docker setup
     TOPIC_CONFIGS = {
+        # Network flow data (high volume)
         'network-flows': {
-            'partitions': 3,
+            'partitions': 6,
             'replication_factor': 1,
             'cleanup_policy': 'delete',
             'retention_ms': 7 * 24 * 60 * 60 * 1000,  # 7 days
             'segment_ms': 60 * 60 * 1000,  # 1 hour
             'max_message_bytes': 10 * 1024 * 1024,  # 10MB
+            'compression_type': 'snappy',
+            'min_insync_replicas': 1
         },
-        'http-logs': {
-            'partitions': 2,
+        # Processed flows (medium volume)
+        'processed-flows': {
+            'partitions': 6,
             'replication_factor': 1,
             'cleanup_policy': 'delete',
             'retention_ms': 3 * 24 * 60 * 60 * 1000,  # 3 days
             'segment_ms': 30 * 60 * 1000,  # 30 minutes
+            'compression_type': 'snappy'
         },
-        'alerts': {
-            'partitions': 1,
+        # Stream analytics (medium volume)
+        'stream-analytics': {
+            'partitions': 3,
+            'replication_factor': 1,
+            'cleanup_policy': 'delete',
+            'retention_ms': 1 * 24 * 60 * 60 * 1000,  # 1 day
+            'segment_ms': 60 * 60 * 1000,  # 1 hour
+            'compression_type': 'gzip'
+        },
+        # Application logs (high volume)
+        'application-logs': {
+            'partitions': 3,
+            'replication_factor': 1,
+            'cleanup_policy': 'delete',
+            'retention_ms': 3 * 24 * 60 * 60 * 1000,  # 3 days
+            'segment_ms': 30 * 60 * 1000,  # 30 minutes
+            'compression_type': 'gzip'
+        },
+        # System metrics (medium volume)
+        'system-metrics': {
+            'partitions': 3,
+            'replication_factor': 1,
+            'cleanup_policy': 'delete',
+            'retention_ms': 7 * 24 * 60 * 60 * 1000,  # 7 days
+            'segment_ms': 2 * 60 * 60 * 1000,  # 2 hours
+            'compression_type': 'gzip'
+        },
+        # Security events (low volume, high retention)
+        'security-events': {
+            'partitions': 3,
+            'replication_factor': 1,
+            'cleanup_policy': 'delete',
+            'retention_ms': 30 * 24 * 60 * 60 * 1000,  # 30 days
+            'segment_ms': 24 * 60 * 60 * 1000,  # 24 hours
+            'min_insync_replicas': 1,
+            'acks': 'all'
+        },
+        # DDoS alerts (critical)
+        'ddos-alerts': {
+            'partitions': 3,
             'replication_factor': 1,
             'cleanup_policy': 'delete',
             'retention_ms': 30 * 24 * 60 * 60 * 1000,  # 30 days
             'segment_ms': 24 * 60 * 60 * 1000,  # 24 hours
         },
-        'actions': {
+        # Web attack alerts (critical)
+        'web-attack-alerts': {
+            'partitions': 3,
+            'replication_factor': 1,
+            'cleanup_policy': 'delete',
+            'retention_ms': 30 * 24 * 60 * 60 * 1000,  # 30 days
+        },
+        # Anomaly alerts (medium priority)
+        'anomaly-alerts': {
+            'partitions': 3,
+            'replication_factor': 1,
+            'cleanup_policy': 'delete',
+            'retention_ms': 14 * 24 * 60 * 60 * 1000,  # 14 days
+        },
+        # Mitigation actions (critical)
+        'mitigation-actions': {
+            'partitions': 3,
+            'replication_factor': 1,
+            'cleanup_policy': 'delete',
+            'retention_ms': 30 * 24 * 60 * 60 * 1000,  # 30 days
+            'min_insync_replicas': 1,
+            'acks': 'all'
+        },
+        # Admin notifications (low volume)
+        'admin-notifications': {
             'partitions': 1,
             'replication_factor': 1,
             'cleanup_policy': 'delete',
-            'retention_ms': 7 * 24 * 60 * 60 * 1000,  # 7 days
-        },
-        'metrics': {
-            'partitions': 2,
-            'replication_factor': 1,
-            'cleanup_policy': 'delete',
-            'retention_ms': 1 * 24 * 60 * 60 * 1000,  # 1 day
-            'segment_ms': 60 * 60 * 1000,  # 1 hour
+            'retention_ms': 90 * 24 * 60 * 60 * 1000,  # 90 days
         }
     }
     
-    def __init__(self, bootstrap_servers: List[str] = ['kafka:9092']):
+    def __init__(self, bootstrap_servers: Optional[List[str]] = None):
+        """
+        Initialize Kafka Manager với Docker environment support
+        
+        Args:
+            bootstrap_servers: List of Kafka brokers. Auto-detects Docker environment.
+        """
+        # Auto-detect environment
+        if bootstrap_servers is None:
+            bootstrap_servers = self._detect_kafka_servers()
+            
+        self.bootstrap_servers = bootstrap_servers
+        self.admin_client = None
+        self.is_healthy = False
+        
+        # Initialize with retry logic
+        self._initialize_with_retry()
+        
+    def _detect_kafka_servers(self) -> List[str]:
+        """
+        Auto-detect Kafka servers based on environment
+        
+        Priority:
+        1. KAFKA_BROKERS environment variable
+        2. Docker internal network (kafka:29092)  
+        3. Localhost (localhost:9092)
+        """
+        # Check environment variable
+        kafka_brokers = os.getenv('KAFKA_BROKERS')
+        if kafka_brokers:
+            return kafka_brokers.split(',')
+            
+        # Check if running in Docker (look for Docker-specific env vars)
+        if os.path.exists('/.dockerenv') or os.getenv('DOCKER_CONTAINER'):
+            logger.info("Detected Docker environment, using internal network")
+            return ['kafka:29092']
+            
+        # Check if Kafka container is accessible
+        import socket
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            result = sock.connect_ex(('localhost', 9092))
+            sock.close()
+            if result == 0:
+                logger.info("Detected local Kafka on localhost:9092")
+                return ['localhost:9092']
+        except:
+            pass
+            
+        # Default to Docker internal network
+        logger.info("Using default Docker internal network")
+        return ['kafka:29092']
+        
+    def _initialize_with_retry(self, max_retries: int = 5, retry_delay: float = 5.0):
+        """Initialize admin client with retry logic"""
+        for attempt in range(max_retries):
+            try:
+                self.admin_client = KafkaAdminClient(
+                    bootstrap_servers=self.bootstrap_servers,
+                    client_id='network-monitor-kafka-manager',
+                    request_timeout_ms=30000,
+                    connections_max_idle_ms=300000
+                )
+                
+                # Test connection
+                metadata = self.admin_client.describe_cluster()
+                self.is_healthy = True
+                logger.info(f"KafkaManager initialized successfully with servers: {self.bootstrap_servers}")
+                logger.info(f"Connected to cluster: {metadata.cluster_id}")
+                return
+                
+            except Exception as e:
+                logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                else:
+                    logger.error("Failed to initialize Kafka connection after all retries")
+                    raise
+                    
+    def health_check(self) -> bool:
+        """
+        Check Kafka cluster health
+        
+        Returns:
+            True if cluster is healthy
+        """
+        try:
+            if not self.admin_client:
+                return False
+                
+            # Try to get cluster metadata
+            metadata = self.admin_client.describe_cluster()
+            
+            # Check if we have brokers
+            if not metadata.brokers:
+                logger.error("No brokers available")
+                return False
+                
+            # Check topic accessibility
+            topics = self.admin_client.list_topics()
+            
+            self.is_healthy = True
+            logger.debug(f"Health check passed. Brokers: {len(metadata.brokers)}, Topics: {len(topics)}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Health check failed: {e}")
+            self.is_healthy = False
+            return False
+            
+    def wait_for_kafka(self, timeout: int = 60) -> bool:
+        """
+        Wait for Kafka to become available
+        
+        Args:
+            timeout: Maximum wait time in seconds
+            
+        Returns:
+            True if Kafka becomes available
+        """
+        start_time = time.time()
+        
+        while time.time() - start_time < timeout:
+            if self.health_check():
+                logger.info("Kafka is available!")
+                return True
+                
+            logger.info("Waiting for Kafka to become available...")
+            time.sleep(5)
+            
+        logger.error(f"Kafka did not become available within {timeout} seconds")
+        return False
         self.bootstrap_servers = bootstrap_servers
         
         # Initialize admin client
