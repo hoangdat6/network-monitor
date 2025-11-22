@@ -1,6 +1,0 @@
-cicflowmeter>=0.1.4
-scapy>=2.4.5
-pandas>=1.5.0
-numpy>=1.21.0
-kafka-python>=2.0.2
-watchdog>=2.1.9

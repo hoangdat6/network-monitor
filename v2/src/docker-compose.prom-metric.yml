@@ -1,0 +1,26 @@
+# Docker Compose configuration for Prometheus Kafka Adapter and Metrics Flattener services
+# Mục đích:
+# - Cấu hình dịch vụ Prometheus Kafka Adapter để chuyển đổi dữ liệu từ Prometheus sang Kafka.
+# - Cấu hình dịch vụ Metrics Flattener để xử lý và làm phẳng dữ liệu từ Kafka - Do khi đi vào kafka dữ liệu có dạng nested JSON, cần làm phẳng để dễ xử lý hơn.
+
+services:
+  prometheus-kafka-adapter:
+    image: telefonica/prometheus-kafka-adapter:1.8.0
+    container_name: ids_prometheus_kafka_adapter
+    restart: always
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKA_TOPIC=raw_metrics
+      - POLL_INTERVAL_MS=10000
+    networks:
+      - ids-network
+
+  metrics-flattener:
+    build: ./infra/metrics-flattener
+    container_name: metrics-flattener
+    networks:
+      - ids-network
+
+networks:
+  ids-network:
+    external: true
