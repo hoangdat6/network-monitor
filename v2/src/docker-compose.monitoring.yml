@@ -56,9 +56,31 @@ services:
     networks:
       - ids-network
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./configs/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./configs/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./configs/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - ids-network
+
 volumes:
   prometheus_data:
     name: prometheus_data
+  grafana_data:
+    name: grafana_data
 
 networks:
   ids-network:

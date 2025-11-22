@@ -249,8 +249,8 @@ class FlowProcessor:
         """
         Clean and normalize data (similar to LSTM preprocessing)
         """
-        # Handle inf/nan values
-        pd.set_option('mode.use_inf_as_na', True)
+        # Handle inf/nan values - deprecated option removed
+        # pd.set_option('mode.use_inf_as_na', True)
         
         # Replace inf with NaN, then fill with 0
         df = df.replace([np.inf, -np.inf], np.nan)
@@ -366,8 +366,17 @@ class CSVWatcher(FileSystemEventHandler):
         self.processor = processor
         
     def on_created(self, event):
-        if event.is_directory:
-            return
+        # Fix: properly handle event.is_directory for FileCreatedEvent
+        try:
+            if event.is_directory:
+                return
+        except AttributeError:
+            # For FileCreatedEvent without is_directory attribute
+            if hasattr(event, 'is_dir'):
+                if event.is_dir:
+                    return
+            # If neither attribute exists, assume it's a file
+            pass
             
         if event.src_path.endswith('.csv'):
             logger.info(f"New CSV detected: {event.src_path}")

@@ -21,6 +21,10 @@ scrape_configs:
     static_configs:
       - targets: ['cadvisor:8080']
 
+  - job_name: 'ddos-detector'
+    static_configs:
+      - targets: ['ids_ddos_detector:8000']
+
   - job_name: 'nginx-exporter'
     static_configs:
       - targets: ['nginx-exporter:9113']

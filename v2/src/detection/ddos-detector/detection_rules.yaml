@@ -18,9 +18,9 @@
 
 thresholds:
   low:
-    min_flows: 10
-    min_suspicious_ratio: 0.3
-    min_confidence: 0.6
+    min_flows: 3          # Giảm xuống để dễ test
+    min_suspicious_ratio: 0.2  # Giảm xuống 20%
+    min_confidence: 0.5   # Giảm xuống 50%
     description: "Suspicious activity detected - monitoring required"
     
   medium:
@@ -93,13 +93,13 @@ time_windows:
 alert:
   # Thời gian cooldown giữa các alerts cùng loại (seconds)
   # Tránh spam alerts khi attack kéo dài
-  cooldown: 300
+  cooldown: 60  # Giảm xuống 60s cho testing
   
   # Top N attackers để report trong alert
   top_attackers_count: 5
   
   # Minimum flows trong window để bắt đầu phân tích
-  min_flows_for_analysis: 5
+  min_flows_for_analysis: 2  # Giảm xuống 2 flows
 
 # ==============================================================================
 # FEATURES
