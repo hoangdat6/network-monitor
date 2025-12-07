@@ -1,0 +1,81 @@
+version: "3.8"
+
+services:
+  # Network packet capture và feature extraction (v2 - Real-time optimized)
+  cicflowmeter-v2:
+    build: ./infra/network-capture/cicflowmeter-v2
+    container_name: ids_cicflowmeter_v2
+    privileged: true
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    security_opt:
+      - apparmor:unconfined
+    environment:
+      - INTERFACE=ens33
+      - OUTPUT_DIR=/output
+      - LOG_LEVEL=INFO
+    volumes:
+      - network_flows:/output
+    restart: unless-stopped
+
+  # Flow processor: CSV -> Kafka (đọc CSV từ CICFlowMeter, normalize và stream to Kafka)
+  flow-processor:
+    build: ./infra/network-capture/flow-processor
+    container_name: ids_flow_processor
+    environment:
+      - INPUT_DIR=/output                    # Đọc CSV từ shared volume với cicflowmeter
+      - KAFKA_BROKERS=kafka:9092            # Kafka connection
+      - KAFKA_TOPIC=network-flows           # Target Kafka topic
+      - BATCH_SIZE=1000                     # Batch size cho Kafka
+      - FILTER_LOCAL_IPS=false               # Lọc local IPs
+      - LOG_LEVEL=INFO
+    volumes:
+      - network_flows:/output            # Read-write access để delete processed files
+      - processed_flows:/processed          # Store processed file tracking
+    restart: unless-stopped
+    depends_on:
+      - cicflowmeter-v2
+    networks:
+      - ids-network
+
+  # DDoS Detector: ML-based detection với sliding window aggregation
+  ddos-detector:
+    build: ./detection/ddos-detector
+    container_name: ids_ddos_detector
+    environment:
+      - MODEL_DIR=/models                   # Model directory
+      - KAFKA_BROKERS=kafka:9092           # Kafka connection
+      - KAFKA_INPUT_TOPIC=network-flows    # Input topic (from flow-processor)
+      - KAFKA_OUTPUT_TOPIC=ddos-alerts     # Output topic (alerts)
+      - WINDOW_SIZE=30                     # Sliding window size (seconds)
+      - ALERT_COOLDOWN=300                 # Alert cooldown period (seconds)
+      - METRICS_PORT=8000                  # Prometheus metrics port
+    volumes:
+      - ./models/ddos_detector:/models:ro  # Absolute path to models
+    ports:
+      - "8001:8000"                        # Prometheus metrics (changed to 8001 to avoid conflict)
+    restart: unless-stopped
+    depends_on:
+      - flow-processor
+    networks:
+      - ids-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  network_flows:
+    name: network_flows
+  pcap_data:
+    name: pcap_data  
+  processed_flows:
+    name: processed_flows
+
+networks:
+  ids-network:
+    external: true

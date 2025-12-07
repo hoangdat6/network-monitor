@@ -1,2 +1,0 @@
-cicflowmeter==0.4.2
-requests>=2.28.1
