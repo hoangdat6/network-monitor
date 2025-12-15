@@ -1,2 +1,20 @@
 .vscode/
 .venv/
+
+# Model files - ignore large uncompressed files
+src/models/final_model/*.joblib
+src/models/final_model/features_reduced.pkl
+# Keep compressed archive
+!src/models/final_model.tar.gz
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+*.log

@@ -53,7 +53,7 @@ services:
       - ALERT_COOLDOWN=300                 # Alert cooldown period (seconds)
       - METRICS_PORT=8000                  # Prometheus metrics port
     volumes:
-      - ./models/ddos_detector:/models:ro  # Absolute path to models
+      - ./models/final_model:/models:ro    # Mount final_model folder with XGBoost reduced model
     ports:
       - "8001:8000"                        # Prometheus metrics (changed to 8001 to avoid conflict)
     restart: unless-stopped

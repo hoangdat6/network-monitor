@@ -152,8 +152,8 @@ class DDoSDetector:
     
     def __init__(self, 
                  model_path: str,
-                 scaler_path: str,
-                 label_encoder_path: str,
+                 features_path: str,
+                 threshold_path: str,
                  rules_path: str,
                  kafka_input_topic: str = 'network-flows',
                  kafka_output_topic: str = 'ddos-alerts',
@@ -171,19 +171,26 @@ class DDoSDetector:
         self.thresholds = self.rules['thresholds']
         self.recommendations = self.rules['recommendations']
         self.alert_config = self.rules['alert']
-        self.required_features = self.rules['features']['required']
         self.ip_whitelist = set(self.rules['ip_filtering']['whitelist'])
         self.ip_blacklist = set(self.rules['ip_filtering']['blacklist'])
         self.analysis_interval = self.rules['performance']['analysis_interval']
         
         logger.info(f"Rules loaded: {len(self.thresholds)} severity levels")
         
-        # Load ML model
+        # Load ML model (XGBoost Calibrated)
         logger.info("Loading ML model...")
         self.model = joblib.load(model_path)
-        self.scaler = joblib.load(scaler_path)
-        self.label_encoder = joblib.load(label_encoder_path)
-        logger.info(f"Model loaded. Classes: {self.label_encoder.classes_}")
+        logger.info(f"Model loaded: {type(self.model).__name__}")
+        
+        # Load feature list (30 features for reduced model)
+        self.required_features = joblib.load(features_path)
+        logger.info(f"Features loaded: {len(self.required_features)} features")
+        
+        # Load threshold configuration
+        with open(threshold_path, 'r') as f:
+            threshold_config = json.load(f)
+        self.classification_threshold = threshold_config.get('threshold', 0.98)
+        logger.info(f"Classification threshold: {self.classification_threshold}")
         
         # Initialize sliding windows from config
         self.windows = {}
@@ -232,10 +239,9 @@ class DDoSDetector:
     
     def extract_features(self, flow_data: Dict) -> Optional[np.ndarray]:
         """
-        Extract features từ flow data
+        Extract features từ flow data (30 features cho reduced model)
         """
         try:
-            # Extract theo thứ tự từ rules config
             features = []
             for feature_name in self.required_features:
                 value = flow_data.get(feature_name, 0.0)
@@ -245,6 +251,10 @@ class DDoSDetector:
                     value = 0.0
                 
                 features.append(float(value))
+            
+            if len(features) != len(self.required_features):
+                logger.error(f"Feature count mismatch: expected {len(self.required_features)}, got {len(features)}")
+                return None
             
             return np.array(features).reshape(1, -1)
             
@@ -269,21 +279,24 @@ class DDoSDetector:
                 if features is None:
                     return None
                 
-                # Scale features
-                features_scaled = self.scaler.transform(features)
+                # Predict with calibrated model
+                prediction_proba = self.model.predict_proba(features)[0]
                 
-                # Predict
-                prediction = self.model.predict(features_scaled)[0]
-                prediction_proba = self.model.predict_proba(features_scaled)[0]
+                # Get probability for attack class (assuming binary: 0=BENIGN, 1=ATTACK)
+                attack_proba = float(prediction_proba[1])
                 
-                # Get label and confidence
-                label = self.label_encoder.inverse_transform([prediction])[0]
-                confidence = float(prediction_proba.max())
+                # Apply threshold
+                prediction = 1 if attack_proba >= self.classification_threshold else 0
+                
+                # Get label
+                label = 'DDoS' if prediction == 1 else 'BENIGN'
+                confidence = attack_proba if prediction == 1 else (1 - attack_proba)
                 
                 # Override if blacklisted
                 if self.is_blacklisted(src_ip):
                     label = 'DDoS'
                     confidence = 1.0
+                    attack_proba = 1.0
                 
                 # Create prediction object
                 result = FlowPrediction(
@@ -461,9 +474,9 @@ def main():
     """
     # Configuration
     MODEL_DIR = os.getenv('MODEL_DIR', '/models')
-    MODEL_PATH = os.path.join(MODEL_DIR, 'rf_ddos_model.pkl')
-    SCALER_PATH = os.path.join(MODEL_DIR, 'rf_scaler.pkl')
-    LABEL_ENCODER_PATH = os.path.join(MODEL_DIR, 'rf_label_encoder.pkl')
+    MODEL_PATH = os.path.join(MODEL_DIR, 'xgb_calibrated_model_reduced.joblib')
+    FEATURES_PATH = os.path.join(MODEL_DIR, 'features_reduced.pkl')
+    THRESHOLD_PATH = os.path.join(MODEL_DIR, 'threshold_reduced.json')
     
     # Rules configuration
     RULES_PATH = os.getenv('RULES_PATH', '/app/detection_rules.yaml')
@@ -478,7 +491,7 @@ def main():
     METRICS_PORT = int(os.getenv('METRICS_PORT', '8000'))
     
     # Check required files
-    required_files = [MODEL_PATH, SCALER_PATH, LABEL_ENCODER_PATH, RULES_PATH]
+    required_files = [MODEL_PATH, FEATURES_PATH, THRESHOLD_PATH, RULES_PATH]
     for path in required_files:
         if not os.path.exists(path):
             logger.error(f"Required file not found: {path}")
@@ -491,8 +504,8 @@ def main():
     # Create and run detector
     detector = DDoSDetector(
         model_path=MODEL_PATH,
-        scaler_path=SCALER_PATH,
-        label_encoder_path=LABEL_ENCODER_PATH,
+        features_path=FEATURES_PATH,
+        threshold_path=THRESHOLD_PATH,
         rules_path=str(RULES_PATH),
         kafka_input_topic=KAFKA_INPUT_TOPIC,
         kafka_output_topic=KAFKA_OUTPUT_TOPIC,

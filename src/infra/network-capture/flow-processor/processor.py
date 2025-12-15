@@ -245,6 +245,56 @@ class FlowProcessor:
         
         return df_filtered
     
+    def add_derived_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add engineered features for improved model performance
+        """
+        df = df.copy()
+        
+        # Ensure required columns exist
+        if 'Total Fwd Packets' not in df.columns:
+            df['Total Fwd Packets'] = 0
+        if 'Total Backward Packets' not in df.columns:
+            df['Total Backward Packets'] = 0
+        
+        # 1. Total packets
+        df['total_packets'] = df['Total Fwd Packets'].fillna(0) + df['Total Backward Packets'].fillna(0)
+        
+        # 2. Total bytes
+        fwd_bytes_col = 'Total Length of Fwd Packets' if 'Total Length of Fwd Packets' in df.columns else 'Subflow Fwd Bytes'
+        bwd_bytes_col = 'Total Length of Bwd Packets' if 'Total Length of Bwd Packets' in df.columns else 'Subflow Bwd Bytes'
+        
+        df['total_fwd_bytes'] = df.get(fwd_bytes_col, pd.Series([0]*len(df))).fillna(0)
+        df['total_bwd_bytes'] = df.get(bwd_bytes_col, pd.Series([0]*len(df))).fillna(0)
+        df['total_bytes'] = df['total_fwd_bytes'] + df['total_bwd_bytes']
+        
+        # 3. Flow duration (ensure positive, add small epsilon to avoid division by zero)
+        if 'Flow Duration' in df.columns:
+            df['Flow Duration'] = pd.to_numeric(df['Flow Duration'], errors='coerce').fillna(0).clip(lower=0) + 1e-6
+        else:
+            df['Flow Duration'] = 1.0
+        
+        # 4. Derived rate features
+        df['packet_rate'] = df['total_packets'] / df['Flow Duration']
+        df['byte_rate'] = df['total_bytes'] / df['Flow Duration']
+        df['mean_packet_size'] = (df['total_bytes'] / df['total_packets'].replace({0: np.nan})).fillna(0)
+        df['fwd_ratio'] = (df['Total Fwd Packets'] / df['total_packets'].replace({0: np.nan})).fillna(0)
+        
+        # 5. IAT range
+        if 'Flow IAT Max' in df.columns and 'Flow IAT Min' in df.columns:
+            df['iat_range'] = (pd.to_numeric(df['Flow IAT Max'], errors='coerce').fillna(0) -
+                              pd.to_numeric(df['Flow IAT Min'], errors='coerce').fillna(0)).clip(lower=0)
+        else:
+            df['iat_range'] = 0.0
+        
+        # 6. Log transforms (to handle skewed distributions)
+        df['log_packet_rate'] = np.log1p(df['packet_rate'].clip(lower=0))
+        df['log_byte_rate'] = np.log1p(df['byte_rate'].clip(lower=0))
+        df['log_total_bytes'] = np.log1p(df['total_bytes'].clip(lower=0))
+        df['log_total_packets'] = np.log1p(df['total_packets'].clip(lower=0))
+        
+        return df
+    
     def clean_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Clean and normalize data (similar to LSTM preprocessing)
@@ -294,6 +344,9 @@ class FlowProcessor:
             
             # Clean data
             df = self.clean_data(df)
+            
+            # Add derived features (feature engineering)
+            df = self.add_derived_features(df)
             
             # Add metadata
             df['source_file'] = os.path.basename(file_path)

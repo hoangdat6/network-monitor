@@ -4,25 +4,45 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: ids_zookeeper
+    user: "0:0"  # Run as root to avoid permission issues
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_DATA_DIR: /var/lib/zookeeper/data
+      ZOOKEEPER_LOG_DIR: /var/lib/zookeeper/log
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_logs:/var/lib/zookeeper/log
+    tmpfs:
+      - /tmp
     networks:
       - ids-network
       
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: ids_kafka
+    user: "0:0"  # Run as root to avoid permission issues
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    volumes:
+      - kafka_data:/var/lib/kafka/data
     depends_on:
       - zookeeper
     networks:
       - ids-network
+
+volumes:
+  zookeeper_data:
+    name: zookeeper_data
+  zookeeper_logs:
+    name: zookeeper_logs
+  kafka_data:
+    name: kafka_data
 
 networks:
   ids-network:
