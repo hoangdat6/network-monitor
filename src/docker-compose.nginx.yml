@@ -4,14 +4,41 @@ version: "3.8"
 
 services:
   nginx:
-    image: nginx:1.27-alpine
+    build:
+      context: .
+      dockerfile: configs/nginx/Dockerfile.nginx
     container_name: nginx
     volumes:
       - ./configs/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./configs/nginx/core:/etc/nginx/core:ro
+      - ./configs/nginx/blocked_ips.conf:/etc/nginx/blocked_ips.conf:rw
+      - ./configs/nginx/sites:/etc/nginx/sites:ro
       - ./configs/nginx/html:/usr/share/nginx/html:ro
       - nginx_logs:/var/log/nginx
     ports:
-      - "8080:80"
+      - "${NGINX_HOST_PORT}:${NGINX_CONTAINER_PORT}"
+      - "${NGINX_STATUS_PORT}:${NGINX_STATUS_PORT}"
+    networks:
+      - ids-network
+    restart: unless-stopped
+
+  # Nginx VTS Exporter (replaces basic nginx-exporter)
+  nginx-vts-exporter:
+    image: sophos/nginx-vts-exporter:latest
+    container_name: nginx_vts_exporter
+    environment:
+      - NGINX_STATUS=http://nginx:${NGINX_STATUS_PORT}/status/format/json
+    ports:
+      - "${NGINX_VTS_EXPORTER_PORT}:${NGINX_VTS_EXPORTER_PORT}"
+    depends_on:
+      - nginx
+    networks:
+      - ids-network
+    restart: unless-stopped
+
+networks:
+  ids-network:
+    external: true
 
 volumes:
   nginx_logs:

@@ -1,0 +1,5 @@
+{
+    "threshold": 0.98,
+    "num_features": 30,
+    "note": "Optimized Reduced Model"
+}

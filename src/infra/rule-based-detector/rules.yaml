@@ -1,0 +1,229 @@
+# Rule-Based DDoS Detection Rules - OPTIMIZED VERSION
+# Based on security review and best practices
+
+# ==============================================================================
+# PER-FLOW RULES
+# ==============================================================================
+# Fast path - check individual flows without aggregation
+# Only for patterns that are CLEARLY malicious in a single flow
+
+per_flow_rules:
+  - id: "PF-001"
+    name: "High-Volume UDP Single Flow"
+    enabled: true
+    severity: "medium"
+    description: "Single UDP flow with extremely high packet count (early signal)"
+    conditions:
+      - field: "protocol"
+        operator: "eq"
+        value: 17  # UDP
+      - field: "tot_fwd_pkts"
+        operator: "gt"
+        value: 1000
+      - field: "flow_duration"
+        operator: "lt"
+        value: 1000000  # < 1 second
+    action: "alert"  # Alert only, don't block
+    
+  - id: "PF-002"
+    name: "ICMP High Rate Pattern"
+    enabled: true
+    severity: "medium"
+    description: "ICMP flow with high packet rate"
+    conditions:
+      - field: "protocol"
+        operator: "eq"
+        value: 1  # ICMP
+      - field: "flow_pkts_s"
+        operator: "gt"
+        value: 100  # > 100 packets/second
+      - field: "flow_duration"
+        operator: "lt"
+        value: 5000000  # < 5 seconds
+    action: "alert"
+
+# ==============================================================================
+# AGGREGATION RULES
+# ==============================================================================
+# Window-based detection - analyze patterns over time
+# These are the MAIN detection rules
+
+aggregation_rules:
+  # ============================================================================
+  # CRITICAL SEVERITY - Clear attacks, can block
+  # ============================================================================
+  
+  - id: "AGG-001"
+    name: "SYN Flood Attack"
+    enabled: true
+    severity: "critical"
+    description: "High SYN count with low ACK ratio - classic SYN flood"
+    window: "30s"
+    conditions:
+      - metric: "syn_flag_count"
+        operator: "gt"
+        value: 500
+      - metric: "syn_ack_ratio"  # SYN / (SYN + ACK)
+        operator: "gt"
+        value: 0.8  # > 80% SYN packets
+    action: "alert_and_block"
+    
+  - id: "AGG-002"
+    name: "UDP Flood Attack"
+    enabled: true
+    severity: "critical"
+    description: "Massive UDP packet flood"
+    window: "60s"
+    conditions:
+      - metric: "udp_packet_count"
+        operator: "gt"
+        value: 10000
+    action: "alert_and_block"
+    
+  - id: "AGG-003"
+    name: "ICMP Flood Attack"
+    enabled: true
+    severity: "critical"
+    description: "Sustained ICMP flood attack"
+    window: "30s"
+    conditions:
+      - metric: "icmp_packet_count"
+        operator: "gt"
+        value: 5000
+    action: "alert_and_block"
+  
+  # ============================================================================
+  # HIGH SEVERITY - Suspicious behavior, alert for investigation
+  # ============================================================================
+  
+  - id: "AGG-004"
+    name: "SSH Brute Force Attack"
+    enabled: true
+    severity: "high"
+    description: "Multiple short SSH connections from single IP"
+    window: "60s"
+    conditions:
+      - metric: "flows_per_ip"
+        operator: "gt"
+        value: 20  # > 20 SSH flows from 1 IP in 60s
+      - metric: "packets_per_ip"
+        operator: "lt"
+        value: 500  # Low packets per flow (quick attempts)
+    action: "alert"  # Alert only, let SOC decide
+    
+  - id: "AGG-005"
+    name: "High Volume from Single IP"
+    enabled: true
+    severity: "high"
+    description: "Excessive traffic from one source"
+    window: "60s"
+    conditions:
+      - metric: "flows_per_ip"
+        operator: "gt"
+        value: 200
+      - metric: "packets_per_ip"
+        operator: "gt"
+        value: 50000
+    action: "alert"  # Alert only, could be legitimate high traffic
+  
+  # ============================================================================
+  # MEDIUM SEVERITY - Reconnaissance/Scanning
+  # ============================================================================
+  
+  - id: "AGG-006"
+    name: "Port Scan Detection"
+    enabled: true
+    severity: "medium"
+    description: "Scanning multiple ports from single IP"
+    window: "60s"
+    conditions:
+      - metric: "unique_dst_ports_per_ip"
+        operator: "gt"
+        value: 50
+      - metric: "flows_per_ip"
+        operator: "gt"
+        value: 50
+    action: "alert"
+    
+  - id: "AGG-007"
+    name: "UDP Port Scan"
+    enabled: true
+    severity: "medium"
+    description: "UDP scanning multiple ports"
+    window: "60s"
+    conditions:
+      - metric: "unique_dst_ports"
+        operator: "gt"
+        value: 100
+      - metric: "udp_packet_count"
+        operator: "gt"
+        value: 1000
+      - metric: "udp_packet_count"
+        operator: "lt"
+        value: 10000  # Not flood level
+    action: "alert"
+  
+  # ============================================================================
+  # NEW RULES - Advanced attack detection
+  # ============================================================================
+  
+  - id: "AGG-008"
+    name: "Low-Rate DDoS / Distributed Attack"
+    enabled: true
+    severity: "high"
+    description: "Many sources with low packets each - distributed DDoS"
+    window: "60s"
+    conditions:
+      - metric: "unique_src_ips"
+        operator: "gt"
+        value: 200  # > 200 different sources
+      - metric: "flows_per_ip"
+        operator: "lt"
+        value: 10  # Each source sends few flows
+    action: "alert"
+    
+  - id: "AGG-009"
+    name: "DNS/NTP Amplification Attack"
+    enabled: true
+    severity: "critical"
+    description: "Response much larger than request - amplification"
+    window: "30s"
+    conditions:
+      - metric: "udp_packet_count"
+        operator: "gt"
+        value: 5000
+      # Note: Need to add bwd/fwd ratio metric in window_manager
+    action: "alert"
+
+# ==============================================================================
+# CONFIGURATION
+# ==============================================================================
+
+config:
+  # Time windows for aggregation
+  windows:
+    short:
+      size: 30  # seconds
+      enabled: true
+    medium:
+      size: 60
+      enabled: true
+    long:
+      size: 300
+      enabled: false  # Disable for now
+  
+  # Alert settings
+  alert:
+    cooldown: 60  # seconds between same alerts
+    min_confidence: 0.8
+  
+  # Kafka topics
+  kafka:
+    input_topic: "network-flows"
+    output_alert_topic: "ddos-alerts"
+    output_ml_topic: "flows-for-ml"
+  
+  # Performance
+  performance:
+    batch_size: 100
+    flush_interval: 5  # seconds

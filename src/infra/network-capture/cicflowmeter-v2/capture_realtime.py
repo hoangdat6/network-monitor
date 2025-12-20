@@ -76,7 +76,34 @@ class RealtimeCICFlowMeter:
                 
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")
+
+    def get_local_ips(self):
+        """Get all local IP addresses"""
+        try:
+            result = subprocess.run(['hostname', '-I'], capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                return result.stdout.strip().split()
+        except Exception as e:
+            logger.warning(f"Failed to get local IPs: {e}")
+        return []
+
+    def exclude_ip_list(self):
+        """Return list of IPs to exclude"""
+        # Start with dynamic local IPs
+        exclude_list = self.get_local_ips()
         
+        # Add additional specific IPs explicitly mentioned or required
+        additional_ips = [
+            '192.168.241.1',
+            '172.217.194.81'
+        ]
+        
+        for ip in additional_ips:
+            if ip not in exclude_list:
+                exclude_list.append(ip)
+        
+        return exclude_list
+    
     def validate_interface(self):
         """Validate that the network interface exists"""
         logger.info("=== Validating Network Interface ===")
@@ -140,19 +167,46 @@ class RealtimeCICFlowMeter:
                 logger.info(f"📝 Starting capture session: flows_{timestamp}.csv")
                 
                 # Start cicflowmeter
-                cmd = [
-                    'cicflowmeter',
-                    '-i', self.interface,
-                    '-c',  # CSV output
-                    csv_file
-                ]
+                # Start cicflowmeter
+                excluded_ips = ",".join(self.exclude_ip_list())
+                logger.info(f"   Excluding IPs: {excluded_ips}")
+                
+                # Check for custom local build
+                custom_src_path = "/app/cicflowmeter_src/src"
+                use_custom = os.path.exists(os.path.join(custom_src_path, "cicflowmeter", "sniffer.py"))
+                
+                env = os.environ.copy()
+
+                if use_custom:
+                    logger.info(f"✨ Using custom CICFlowMeter build from {custom_src_path}")
+                    env["PYTHONPATH"] = custom_src_path + os.pathsep + env.get("PYTHONPATH", "")
+                    
+                    cmd = [
+                        sys.executable,
+                        '-m', 'cicflowmeter.sniffer',
+                        '-i', self.interface,
+                        '-c',
+                        csv_file,
+                        '--exclude-ips',  # Custom build uses --exclude-ips
+                        excluded_ips
+                    ]
+                else:
+                    cmd = [
+                        'cicflowmeter',
+                        '-i', self.interface,
+                        '-c',  # CSV output
+                        csv_file,
+                        '--exclude',
+                        excluded_ips
+                    ]
                 
                 process = subprocess.Popen(
                     cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
-                    bufsize=1
+                    bufsize=1,
+                    env=env
                 )
                 
                 # Run for specified duration

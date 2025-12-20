@@ -12,28 +12,38 @@ services:
       - NET_RAW
     security_opt:
       - apparmor:unconfined
+    env_file:
+      - .env
     environment:
-      - INTERFACE=ens33
-      - OUTPUT_DIR=/output
-      - LOG_LEVEL=INFO
+      - INTERFACE=${CIC_INTERFACE}
+      - OUTPUT_DIR=${CIC_OUTPUT_DIR}
+      - CAPTURE_DURATION=${CIC_CAPTURE_DURATION}
+      - LOG_LEVEL=${CIC_LOG_LEVEL}
     volumes:
       - network_flows:/output
+      - /root/cicflowmeter:/app/cicflowmeter_src:ro
     restart: unless-stopped
 
   # Flow processor: CSV -> Kafka (đọc CSV từ CICFlowMeter, normalize và stream to Kafka)
   flow-processor:
     build: ./infra/network-capture/flow-processor
     container_name: ids_flow_processor
+    env_file:
+      - .env
     environment:
-      - INPUT_DIR=/output                    # Đọc CSV từ shared volume với cicflowmeter
-      - KAFKA_BROKERS=kafka:9092            # Kafka connection
-      - KAFKA_TOPIC=network-flows           # Target Kafka topic
-      - BATCH_SIZE=1000                     # Batch size cho Kafka
-      - FILTER_LOCAL_IPS=false               # Lọc local IPs
-      - LOG_LEVEL=INFO
+      - INPUT_DIR=${FLOW_INPUT_DIR}
+      - KAFKA_BROKERS=${FLOW_KAFKA_BROKERS}
+      - KAFKA_TOPIC=${FLOW_KAFKA_TOPIC}
+      - BATCH_SIZE=${FLOW_BATCH_SIZE}
+      - FILTER_LOCAL_IPS=${FLOW_FILTER_LOCAL_IPS}
+      - LOG_LEVEL=${FLOW_LOG_LEVEL}
+      # Optional: Custom IP filter config path
+      # - IP_FILTER_CONFIG_PATH=/app/ip_filter_config.yaml
     volumes:
       - network_flows:/output            # Read-write access để delete processed files
-      - processed_flows:/processed          # Store processed file tracking
+      - processed_flows:/processed       # Store processed file tracking
+      # Mount IP filter config - có thể edit từ host mà không cần rebuild
+      - ./infra/network-capture/flow-processor/ip_filter_config.yaml:/app/ip_filter_config.yaml:ro
     restart: unless-stopped
     depends_on:
       - cicflowmeter-v2
@@ -41,32 +51,84 @@ services:
       - ids-network
 
   # DDoS Detector: ML-based detection với sliding window aggregation
-  ddos-detector:
-    build: ./detection/ddos-detector
-    container_name: ids_ddos_detector
+  ml-detector:
+    build: ./infra/ml-detector
+    container_name: ids_ml_detector
+    env_file:
+      - .env
     environment:
-      - MODEL_DIR=/models                   # Model directory
-      - KAFKA_BROKERS=kafka:9092           # Kafka connection
-      - KAFKA_INPUT_TOPIC=network-flows    # Input topic (from flow-processor)
-      - KAFKA_OUTPUT_TOPIC=ddos-alerts     # Output topic (alerts)
-      - WINDOW_SIZE=30                     # Sliding window size (seconds)
-      - ALERT_COOLDOWN=300                 # Alert cooldown period (seconds)
-      - METRICS_PORT=8000                  # Prometheus metrics port
+      - MODEL_DIR=${DDOS_MODEL_DIR}
+      - KAFKA_BROKERS=${DDOS_KAFKA_BROKERS}
+      - KAFKA_INPUT_TOPIC=${DDOS_KAFKA_INPUT_TOPIC}
+      - KAFKA_OUTPUT_TOPIC=${DDOS_KAFKA_OUTPUT_TOPIC}
+      - WINDOW_SIZE=${DDOS_WINDOW_SIZE}
+      - ALERT_COOLDOWN=${DDOS_ALERT_COOLDOWN}
+      - METRICS_PORT=${DDOS_METRICS_PORT}
     volumes:
       - ./models/final_model:/models:ro    # Mount final_model folder with XGBoost reduced model
     ports:
-      - "8001:8000"                        # Prometheus metrics (changed to 8001 to avoid conflict)
+      - "${DDOS_DETECTOR_HOST_PORT}:${DDOS_DETECTOR_CONTAINER_PORT}"                        # Prometheus metrics
     restart: unless-stopped
     depends_on:
       - flow-processor
     networks:
       - ids-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      test: ["CMD", "curl", "-f", "http://localhost:${DDOS_DETECTOR_CONTAINER_PORT}"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
+
+  # Response Manager: Quản lý detected IPs với Redis và admin approval
+  response-manager:
+    build: ./infra/ddos-response-manager
+    container_name: ids_response_manager
+    environment:
+      - KAFKA_BROKERS=kafka:${KAFKA_PORT}
+      - KAFKA_ALERT_TOPIC=ddos-alerts
+      - REDIS_HOST=redis
+      - REDIS_PORT=${REDIS_PORT}
+      - API_PORT=${RESPONSE_MANAGER_CONTAINER_PORT}
+      - DEFAULT_BLOCK_DURATION=3600
+    ports:
+      - "${RESPONSE_MANAGER_HOST_PORT}:${RESPONSE_MANAGER_CONTAINER_PORT}"
+    depends_on:
+      - ml-detector
+      - redis
+    networks:
+      - ids-network
+    restart: unless-stopped
+
+  # Response Manager Prometheus Exporter
+  response-manager-exporter:
+    build: ./infra/ddos-response-manager
+    container_name: ids_response_manager_exporter
+    command: ["python", "metrics_exporter.py"]
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=${REDIS_PORT}
+      - METRICS_PORT=${RESPONSE_EXPORTER_PORT}
+    ports:
+      - "${RESPONSE_EXPORTER_PORT}:${RESPONSE_EXPORTER_PORT}"
+    depends_on:
+      - redis
+    networks:
+      - ids-network
+    restart: unless-stopped
+
+  # Redis: Storage cho IP metadata
+  redis:
+    image: redis:7-alpine
+    container_name: ids_redis
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ids-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
 
 volumes:
   network_flows:
@@ -75,6 +137,8 @@ volumes:
     name: pcap_data  
   processed_flows:
     name: processed_flows
+  redis_data:
+    name: redis_data
 
 networks:
   ids-network:

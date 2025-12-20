@@ -19,7 +19,10 @@
   "links": [],
   "panels": [
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -47,7 +50,7 @@
         }
       },
       "gridPos": {
-        "h": 6,
+        "h": 4,
         "w": 6,
         "x": 0,
         "y": 0
@@ -65,19 +68,21 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.0",
+      "pluginVersion": "9.5.0",
       "targets": [
         {
-          "expr": "ddos_alerts_triggered_total",
-          "refId": "A",
-          "legendFormat": "Total DDoS Alerts"
+          "expr": "sum(ddos_attacks_detected_total)",
+          "refId": "A"
         }
       ],
-      "title": "Total DDoS Alerts",
+      "title": "Total DDoS Attacks Detected",
       "type": "stat"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -88,16 +93,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "blue",
                 "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 100
-              },
-              {
-                "color": "red",
-                "value": 1000
               }
             ]
           },
@@ -105,7 +102,7 @@
         }
       },
       "gridPos": {
-        "h": 6,
+        "h": 4,
         "w": 6,
         "x": 6,
         "y": 0
@@ -123,19 +120,21 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.0",
+      "pluginVersion": "9.5.0",
       "targets": [
         {
-          "expr": "ddos_flows_processed_total",
-          "refId": "A",
-          "legendFormat": "Flows Processed"
+          "expr": "ddos_pending_ips_count",
+          "refId": "A"
         }
       ],
-      "title": "Total Flows Processed",
+      "title": "IPs Pending Approval",
       "type": "stat"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -146,12 +145,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
-              },
-              {
                 "color": "red",
-                "value": 1
+                "value": null
               }
             ]
           },
@@ -159,7 +154,7 @@
         }
       },
       "gridPos": {
-        "h": 6,
+        "h": 4,
         "w": 6,
         "x": 12,
         "y": 0
@@ -177,19 +172,21 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.0",
+      "pluginVersion": "9.5.0",
       "targets": [
         {
-          "expr": "ddos_active_attackers",
-          "refId": "A",
-          "legendFormat": "Active Attackers"
+          "expr": "ddos_blocked_ips_count",
+          "refId": "A"
         }
       ],
-      "title": "Active Attacking IPs",
+      "title": "IPs Currently Blocked",
       "type": "stat"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -202,14 +199,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 50
-              },
-              {
-                "color": "red",
-                "value": 100
               }
             ]
           },
@@ -217,7 +206,7 @@
         }
       },
       "gridPos": {
-        "h": 6,
+        "h": 4,
         "w": 6,
         "x": 18,
         "y": 0
@@ -235,19 +224,21 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.0",
+      "pluginVersion": "9.5.0",
       "targets": [
         {
-          "expr": "ddos_flows_in_window",
-          "refId": "A",
-          "legendFormat": "Flows in Window"
+          "expr": "ddos_whitelisted_ips_count",
+          "refId": "A"
         }
       ],
-      "title": "Flows in Current Window",
+      "title": "IPs Whitelisted",
       "type": "stat"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -258,7 +249,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 20,
+            "fillOpacity": 10,
             "gradientMode": "none",
             "hideFrom": {
               "tooltip": false,
@@ -271,7 +262,7 @@
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -291,75 +282,50 @@
               }
             ]
           },
-          "unit": "reqps"
+          "unit": "short"
         }
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 24,
         "x": 0,
-        "y": 6
+        "y": 4
       },
       "id": 5,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
-          "displayMode": "table",
+          "calcs": [],
+          "displayMode": "list",
           "placement": "bottom"
         },
         "tooltip": {
           "mode": "single"
         }
       },
+      "pluginVersion": "9.5.0",
       "targets": [
         {
-          "expr": "rate(ddos_flows_processed_total[1m])",
-          "refId": "A",
-          "legendFormat": "Flow Processing Rate"
-        },
-        {
-          "expr": "rate(ddos_flows_suspicious_total[1m])",
-          "refId": "B",
-          "legendFormat": "Suspicious Flow Rate"
+          "expr": "rate(ddos_attacks_detected_total[5m])",
+          "legendFormat": "Attack Rate (per 5m)",
+          "refId": "A"
         }
       ],
-      "title": "Flow Processing Rate (flows/sec)",
+      "title": "DDoS Attack Detection Rate",
       "type": "timeseries"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
           "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "tooltip": false,
-              "viz": false,
-              "legend": false
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
             },
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "normal"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "inspect": false
           },
           "mappings": [],
           "thresholds": {
@@ -370,71 +336,178 @@
                 "value": null
               }
             ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ip"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
           },
-          "unit": "short"
-        }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "severity"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "critical": {
+                        "color": "dark-red",
+                        "index": 0
+                      },
+                      "high": {
+                        "color": "red",
+                        "index": 1
+                      },
+                      "medium": {
+                        "color": "orange",
+                        "index": 2
+                      },
+                      "low": {
+                        "color": "yellow",
+                        "index": 3
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "confidence"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "attack_type"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 120
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 6
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 12
       },
       "id": 6,
       "options": {
-        "legend": {
-          "calcs": ["sum"],
-          "displayMode": "table",
-          "placement": "bottom"
+        "footer": {
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
         },
-        "tooltip": {
-          "mode": "multi"
-        }
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "confidence"
+          }
+        ]
       },
+      "pluginVersion": "9.5.0",
       "targets": [
         {
-          "expr": "sum by (attack_type) (ddos_flows_suspicious_total)",
-          "refId": "A",
-          "legendFormat": "{{attack_type}}"
+          "expr": "ddos_ip_metadata{block_status=\"pending\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
         }
       ],
-      "title": "Suspicious Flows by Attack Type",
-      "type": "timeseries"
+      "title": "⏳ IPs Pending Approval - Click IP to View Details",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "block_duration": false,
+              "block_status": true,
+              "instance": true,
+              "job": true
+            },
+            "indexByName": {
+              "ip": 0,
+              "severity": 1,
+              "attack_type": 2,
+              "confidence": 3,
+              "flow_count": 4,
+              "alert_count": 5,
+              "first_seen": 6,
+              "last_seen": 7,
+              "block_duration": 8
+            },
+            "renameByName": {
+              "ip": "IP Address",
+              "severity": "Severity",
+              "attack_type": "Attack Type",
+              "confidence": "Confidence",
+              "flow_count": "Flow Count",
+              "alert_count": "Alerts",
+              "first_seen": "First Seen",
+              "last_seen": "Last Seen",
+              "block_duration": "Block Duration (s)"
+            }
+          }
+        }
+      ],
+      "type": "table"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
           "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "tooltip": false,
-              "viz": false,
-              "legend": false
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
             },
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "line"
-            }
+            "inspect": false
           },
           "mappings": [],
           "thresholds": {
@@ -443,82 +516,121 @@
               {
                 "color": "green",
                 "value": null
-              },
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ip"
+            },
+            "properties": [
               {
-                "color": "red",
-                "value": 0.001
+                "id": "custom.width",
+                "value": 150
               }
             ]
           },
-          "unit": "s"
-        }
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ttl_seconds"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 120
+              },
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 24,
         "x": 0,
-        "y": 14
+        "y": 22
       },
       "id": 7,
       "options": {
-        "legend": {
-          "calcs": ["mean", "max"],
-          "displayMode": "table",
-          "placement": "bottom"
+        "footer": {
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
         },
-        "tooltip": {
-          "mode": "single"
-        }
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "ttl_seconds"
+          }
+        ]
       },
+      "pluginVersion": "9.5.0",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, rate(ddos_prediction_seconds_bucket[5m]))",
-          "refId": "A",
-          "legendFormat": "P95 Prediction Time"
-        },
-        {
-          "expr": "histogram_quantile(0.99, rate(ddos_prediction_seconds_bucket[5m]))",
-          "refId": "B",
-          "legendFormat": "P99 Prediction Time"
+          "expr": "ddos_ip_metadata{block_status=\"blocked\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
         }
       ],
-      "title": "ML Model Prediction Latency",
-      "type": "timeseries"
+      "title": "🚫 Currently Blocked IPs - Auto-expire after TTL",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "block_status": true,
+              "instance": true,
+              "job": true
+            },
+            "indexByName": {
+              "ip": 0,
+              "severity": 1,
+              "attack_type": 2,
+              "confidence": 3,
+              "ttl_seconds": 4,
+              "alert_count": 5,
+              "first_seen": 6,
+              "last_seen": 7
+            },
+            "renameByName": {
+              "ip": "IP Address",
+              "severity": "Severity",
+              "attack_type": "Attack Type",
+              "confidence": "Confidence",
+              "ttl_seconds": "TTL Remaining",
+              "alert_count": "Alerts",
+              "first_seen": "Blocked Since",
+              "last_seen": "Last Activity"
+            }
+          }
+        }
+      ],
+      "type": "table"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
           "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "bars",
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "hideFrom": {
-              "tooltip": false,
-              "viz": false,
-              "legend": false
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
             },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "inspect": false
           },
           "mappings": [],
           "thresholds": {
@@ -529,335 +641,193 @@
                 "value": null
               }
             ]
-          },
-          "unit": "short"
+          }
         }
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 14
+        "w": 24,
+        "x": 0,
+        "y": 30
       },
       "id": 8,
       "options": {
-        "legend": {
-          "calcs": ["sum"],
-          "displayMode": "table",
-          "placement": "bottom"
+        "footer": {
+          "fields": "",
+          "reducer": ["sum"],
+          "show": false
         },
-        "tooltip": {
-          "mode": "multi"
-        }
+        "showHeader": true
       },
+      "pluginVersion": "9.5.0",
       "targets": [
         {
-          "expr": "sum by (severity) (increase(ddos_alerts_triggered_total[5m]))",
-          "refId": "A",
-          "legendFormat": "{{severity}}"
+          "expr": "ddos_ip_metadata{block_status=\"whitelisted\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
         }
       ],
-      "title": "DDoS Alerts by Severity (Last 5m)",
-      "type": "timeseries"
+      "title": "✅ Whitelisted IPs - No blocking applied",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "block_duration": true,
+              "block_status": true,
+              "instance": true,
+              "job": true,
+              "ttl_seconds": true
+            },
+            "indexByName": {
+              "ip": 0,
+              "severity": 1,
+              "attack_type": 2,
+              "confidence": 3,
+              "alert_count": 4,
+              "first_seen": 5,
+              "last_seen": 6
+            },
+            "renameByName": {
+              "ip": "IP Address",
+              "severity": "Original Severity",
+              "attack_type": "Attack Type",
+              "confidence": "Confidence",
+              "alert_count": "Alerts",
+              "first_seen": "First Detected",
+              "last_seen": "Whitelisted At"
+            }
+          }
+        }
+      ],
+      "type": "table"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
             "hideFrom": {
+              "legend": false,
               "tooltip": false,
-              "viz": false,
-              "legend": false
-            },
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
+              "viz": false
             }
           },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "binBps"
+          "mappings": []
         }
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 22
+        "y": 38
       },
       "id": 9,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
           "displayMode": "table",
-          "placement": "bottom"
+          "placement": "right",
+          "values": ["value"]
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
         },
         "tooltip": {
-          "mode": "multi"
+          "mode": "single"
         }
       },
+      "pluginVersion": "9.5.0",
       "targets": [
         {
-          "expr": "rate(node_network_receive_bytes_total{device!~\"lo|docker.*|veth.*\"}[5m])",
-          "refId": "A",
-          "legendFormat": "{{device}} - RX"
-        },
-        {
-          "expr": "rate(node_network_transmit_bytes_total{device!~\"lo|docker.*|veth.*\"}[5m])",
-          "refId": "B",
-          "legendFormat": "{{device}} - TX"
+          "expr": "sum by (attack_type) (ddos_ip_metadata{block_status=\"blocked\"})",
+          "legendFormat": "{{attack_type}}",
+          "refId": "A"
         }
       ],
-      "title": "Network Traffic (Bytes/sec)",
-      "type": "timeseries"
+      "title": "Attack Types Distribution (Blocked IPs)",
+      "type": "piechart"
     },
     {
-      "datasource": "Prometheus",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
             "hideFrom": {
+              "legend": false,
               "tooltip": false,
-              "viz": false,
-              "legend": false
-            },
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
+              "viz": false
             }
           },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "pps"
+          "mappings": []
         }
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 22
+        "y": 38
       },
       "id": 10,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
           "displayMode": "table",
-          "placement": "bottom"
+          "placement": "right",
+          "values": ["value"]
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
         },
         "tooltip": {
-          "mode": "multi"
+          "mode": "single"
         }
       },
+      "pluginVersion": "9.5.0",
       "targets": [
         {
-          "expr": "rate(node_network_receive_packets_total{device!~\"lo|docker.*|veth.*\"}[5m])",
-          "refId": "A",
-          "legendFormat": "{{device}} - RX"
-        },
-        {
-          "expr": "rate(node_network_transmit_packets_total{device!~\"lo|docker.*|veth.*\"}[5m])",
-          "refId": "B",
-          "legendFormat": "{{device}} - TX"
+          "expr": "sum by (severity) (ddos_ip_metadata{block_status=~\"blocked|pending\"})",
+          "legendFormat": "{{severity}}",
+          "refId": "A"
         }
       ],
-      "title": "Network Traffic (Packets/sec)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "Prometheus",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "displayMode": "auto"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        }
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 30
-      },
-      "id": 11,
-      "options": {
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "8.0.0",
-      "targets": [
-        {
-          "expr": "topk(10, sum by (instance) (rate(container_cpu_usage_seconds_total[5m])))",
-          "refId": "A",
-          "format": "table",
-          "instant": true
-        }
-      ],
-      "title": "Top 10 Containers by CPU Usage",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true
-            },
-            "indexByName": {},
-            "renameByName": {
-              "instance": "Container",
-              "Value": "CPU Usage (%)"
-            }
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": "Prometheus",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "displayMode": "auto"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "bytes"
-        }
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 30
-      },
-      "id": 12,
-      "options": {
-        "showHeader": true,
-        "sortBy": []
-      },
-      "pluginVersion": "8.0.0",
-      "targets": [
-        {
-          "expr": "topk(10, sum by (instance) (container_memory_usage_bytes))",
-          "refId": "A",
-          "format": "table",
-          "instant": true
-        }
-      ],
-      "title": "Top 10 Containers by Memory Usage",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true
-            },
-            "indexByName": {},
-            "renameByName": {
-              "instance": "Container",
-              "Value": "Memory Usage"
-            }
-          }
-        }
-      ],
-      "type": "table"
+      "title": "Severity Distribution (Active Threats)",
+      "type": "piechart"
     }
   ],
-  "refresh": "5s",
-  "schemaVersion": 27,
+  "refresh": "10s",
+  "schemaVersion": 38,
   "style": "dark",
-  "tags": ["ddos", "security", "network", "ids"],
+  "tags": ["ddos", "security", "detection"],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
-  "title": "DDoS Detection & Network Monitoring",
+  "title": "DDoS Detection & Response Dashboard",
   "uid": "ddos-detection",
   "version": 1
 }

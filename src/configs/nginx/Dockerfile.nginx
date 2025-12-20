@@ -1,0 +1,46 @@
+FROM nginx:1.27-alpine
+
+# Install build dependencies and VTS module
+RUN apk add --no-cache --virtual .build-deps \
+    gcc \
+    libc-dev \
+    make \
+    openssl-dev \
+    pcre-dev \
+    zlib-dev \
+    linux-headers \
+    curl \
+    gnupg \
+    libxslt-dev \
+    gd-dev \
+    geoip-dev \
+    git
+
+# Get nginx version
+RUN NGINX_VERSION=$(nginx -v 2>&1 | sed -n 's|.*nginx/\([0-9.]*\).*|\1|p') && \
+    echo "Building for Nginx $NGINX_VERSION" && \
+    # Download nginx source
+    cd /tmp && \
+    curl -fSL https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz -o nginx.tar.gz && \
+    tar -xzf nginx.tar.gz && \
+    # Clone VTS module
+    git clone https://github.com/vozlt/nginx-module-vts.git && \
+    # Build dynamic module
+    cd nginx-${NGINX_VERSION} && \
+    ./configure \
+        --with-compat \
+        --add-dynamic-module=/tmp/nginx-module-vts && \
+    make modules && \
+    # Copy module to nginx modules directory
+    cp objs/ngx_http_vhost_traffic_status_module.so /usr/lib/nginx/modules/ && \
+    # Cleanup
+    cd / && \
+    rm -rf /tmp/nginx-${NGINX_VERSION} /tmp/nginx.tar.gz /tmp/nginx-module-vts && \
+    apk del .build-deps
+
+# Add module loading configuration
+RUN echo "load_module modules/ngx_http_vhost_traffic_status_module.so;" > /etc/nginx/modules/vts.conf
+
+EXPOSE 80 8081
+
+CMD ["nginx", "-g", "daemon off;"]

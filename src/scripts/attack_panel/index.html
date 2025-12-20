@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDoS Attack Control Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #0a0e27;
+            --bg-card: #1a1f3a;
+            --bg-card-hover: #252b4a;
+            --accent-red: #ff4757;
+            --accent-orange: #ffa502;
+            --accent-green: #26de81;
+            --accent-blue: #3742fa;
+            --text-primary: #ffffff;
+            --text-secondary: #a4b0be;
+            --border-color: #2d3561;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1f3a 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: var(--bg-card);
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--accent-red), var(--accent-orange));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .warning {
+            background: rgba(255, 71, 87, 0.1);
+            border: 1px solid var(--accent-red);
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .warning::before {
+            content: "⚠️";
+            font-size: 1.5rem;
+        }
+
+        .config-section {
+            background: var(--bg-card);
+            padding: 30px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+        }
+
+        .config-section h2 {
+            margin-bottom: 20px;
+            color: var(--accent-blue);
+            font-size: 1.5rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 12px 16px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(55, 66, 250, 0.1);
+        }
+
+        .attack-types {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .attack-card {
+            background: var(--bg-dark);
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .attack-card:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(55, 66, 250, 0.2);
+        }
+
+        .attack-card.selected {
+            border-color: var(--accent-green);
+            background: rgba(38, 222, 129, 0.1);
+        }
+
+        .attack-card .icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .attack-card .name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .attack-card .desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .attack-card .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 0.75rem;
+            margin-top: 8px;
+            font-weight: 600;
+        }
+
+        .badge.critical { background: rgba(255, 71, 87, 0.2); color: var(--accent-red); }
+        .badge.high { background: rgba(255, 165, 2, 0.2); color: var(--accent-orange); }
+        .badge.medium { background: rgba(55, 66, 250, 0.2); color: var(--accent-blue); }
+
+        .btn {
+            padding: 15px 40px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-red), var(--accent-orange));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 71, 87, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-stop {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            border: 2px solid var(--accent-red);
+        }
+
+        .status-panel {
+            background: var(--bg-card);
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            margin-top: 30px;
+        }
+
+        .status-panel h2 {
+            margin-bottom: 20px;
+            color: var(--accent-green);
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-dark);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-card .label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-green);
+        }
+
+        .log-container {
+            background: var(--bg-dark);
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .log-entry {
+            padding: 8px;
+            margin-bottom: 5px;
+            border-left: 3px solid var(--accent-blue);
+            padding-left: 12px;
+        }
+
+        .log-entry.error {
+            border-left-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        .log-entry.success {
+            border-left-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .attacking {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔴 DDoS Attack Control Panel</h1>
+            <p>Advanced Traffic Generation & Testing Framework v2.0</p>
+        </div>
+
+        <div class="warning">
+            <span><strong>WARNING:</strong> Use ONLY on systems you own or have explicit permission to test. Unauthorized use is illegal.</span>
+        </div>
+
+        <div class="config-section">
+            <h2>⚙️ Attack Configuration</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="target">Target IP/Hostname</label>
+                    <input type="text" id="target" placeholder="192.168.1.100" value="192.168.241.9">
+                </div>
+                <div class="form-group">
+                    <label for="port">Target Port</label>
+                    <input type="number" id="port" placeholder="80" value="80">
+                </div>
+                <div class="form-group">
+                    <label for="duration">Duration (seconds)</label>
+                    <input type="number" id="duration" placeholder="60" value="30">
+                </div>
+                <div class="form-group">
+                    <label for="threads">Threads/Connections</label>
+                    <input type="number" id="threads" placeholder="100" value="50">
+                </div>
+            </div>
+
+            <h3 style="margin: 30px 0 15px 0; color: var(--text-secondary);">Select Attack Type:</h3>
+            <div class="attack-types" id="attackTypes"></div>
+
+            <div style="margin-top: 30px; text-align: center;">
+                <button class="btn btn-primary" id="startBtn" onclick="startAttack()">
+                    🚀 Launch Attack
+                </button>
+                <button class="btn btn-stop" id="stopBtn" onclick="stopAttack()" style="display: none;">
+                    🛑 Stop Attack
+                </button>
+            </div>
+        </div>
+
+        <div class="status-panel">
+            <h2>📊 Attack Status</h2>
+            <div class="status-grid">
+                <div class="stat-card">
+                    <div class="label">Status</div>
+                    <div class="value" id="statusValue">Idle</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Requests Sent</div>
+                    <div class="value" id="requestsValue">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Rate (req/s)</div>
+                    <div class="value" id="rateValue">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Elapsed Time</div>
+                    <div class="value" id="timeValue">0s</div>
+                </div>
+            </div>
+
+            <div class="log-container" id="logContainer">
+                <div class="log-entry">System ready. Configure attack parameters and select attack type.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const attacks = [
+            { id: 'http', name: 'HTTP Flood', icon: '🌐', desc: 'High-volume HTTP requests', severity: 'high', sudo: false },
+            { id: 'slowloris', name: 'Slowloris', icon: '🐌', desc: 'Slow HTTP headers', severity: 'high', sudo: false },
+            { id: 'slow-post', name: 'Slow POST', icon: '📮', desc: 'R.U.D.Y attack', severity: 'medium', sudo: false },
+            { id: 'slow-read', name: 'Slow Read', icon: '📖', desc: 'Slow response reading', severity: 'medium', sudo: false },
+            { id: 'syn', name: 'SYN Flood', icon: '⚡', desc: 'TCP SYN flood', severity: 'critical', sudo: true },
+            { id: 'udp', name: 'UDP Flood', icon: '💥', desc: 'UDP packet flood', severity: 'critical', sudo: true },
+            { id: 'icmp', name: 'ICMP Flood', icon: '🏓', desc: 'Ping of Death', severity: 'critical', sudo: true },
+            { id: 'distributed-http', name: 'Distributed HTTP', icon: '🌍', desc: 'Botnet HTTP flood', severity: 'high', sudo: false },
+            { id: 'distributed-syn', name: 'Distributed SYN', icon: '🌐', desc: 'Botnet SYN flood', severity: 'critical', sudo: true },
+            { id: 'distributed-udp', name: 'Distributed UDP', icon: '🔥', desc: 'Botnet UDP flood', severity: 'critical', sudo: true },
+            { id: 'dns-amp', name: 'DNS Amplification', icon: '🔍', desc: 'DNS ANY queries', severity: 'high', sudo: false },
+            { id: 'ntp-amp', name: 'NTP Amplification', icon: '⏰', desc: 'NTP monlist', severity: 'high', sudo: false },
+        ];
+
+        let selectedAttack = null;
+        let attackInterval = null;
+
+        // Render attack cards
+        const attackTypesContainer = document.getElementById('attackTypes');
+        attacks.forEach(attack => {
+            const card = document.createElement('div');
+            card.className = 'attack-card';
+            card.onclick = () => selectAttack(attack.id);
+            card.innerHTML = `
+                <div class="icon">${attack.icon}</div>
+                <div class="name">${attack.name}</div>
+                <div class="desc">${attack.desc}</div>
+                <div class="badge ${attack.severity}">${attack.severity.toUpperCase()}</div>
+                ${attack.sudo ? '<div style="font-size: 0.75rem; color: var(--accent-orange); margin-top: 5px;">Requires sudo</div>' : ''}
+            `;
+            card.dataset.attackId = attack.id;
+            attackTypesContainer.appendChild(card);
+        });
+
+        function selectAttack(attackId) {
+            selectedAttack = attackId;
+            document.querySelectorAll('.attack-card').forEach(card => {
+                card.classList.toggle('selected', card.dataset.attackId === attackId);
+            });
+            addLog(`Selected attack: ${attacks.find(a => a.id === attackId).name}`, 'success');
+        }
+
+        async function startAttack() {
+            if (!selectedAttack) {
+                alert('Please select an attack type first!');
+                return;
+            }
+
+            const target = document.getElementById('target').value;
+            const port = document.getElementById('port').value;
+            const duration = document.getElementById('duration').value;
+            const threads = document.getElementById('threads').value;
+
+            if (!target) {
+                alert('Please enter a target IP/hostname!');
+                return;
+            }
+
+            const attack = attacks.find(a => a.id === selectedAttack);
+            
+            if (!confirm(`Launch ${attack.name} attack on ${target}:${port} for ${duration}s?`)) {
+                return;
+            }
+
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').style.display = 'inline-flex';
+            document.getElementById('statusValue').textContent = 'Attacking';
+            document.getElementById('statusValue').classList.add('attacking');
+
+            addLog(`🚀 Launching ${attack.name} attack...`, 'success');
+            addLog(`Target: ${target}:${port}`, 'info');
+            addLog(`Duration: ${duration}s, Threads: ${threads}`, 'info');
+
+            try {
+                const response = await fetch('/api/attack/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        attack_type: selectedAttack,
+                        target,
+                        port: parseInt(port),
+                        duration: parseInt(duration),
+                        threads: parseInt(threads)
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`✓ Attack started successfully`, 'success');
+                    startMonitoring();
+                } else {
+                    addLog(`✗ Failed to start attack: ${data.error}`, 'error');
+                    resetUI();
+                }
+            } catch (error) {
+                addLog(`✗ Error: ${error.message}`, 'error');
+                resetUI();
+            }
+        }
+
+        async function stopAttack() {
+            try {
+                const response = await fetch('/api/attack/stop', { method: 'POST' });
+                const data = await response.json();
+                addLog(`🛑 Attack stopped`, 'success');
+                resetUI();
+            } catch (error) {
+                addLog(`✗ Error stopping attack: ${error.message}`, 'error');
+            }
+        }
+
+        function startMonitoring() {
+            let startTime = Date.now();
+            attackInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/attack/status');
+                    const data = await response.json();
+                    
+                    document.getElementById('requestsValue').textContent = data.requests_sent.toLocaleString();
+                    document.getElementById('rateValue').textContent = Math.round(data.rate);
+                    
+                    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                    document.getElementById('timeValue').textContent = `${elapsed}s`;
+
+                    if (data.status === 'completed' || data.status === 'idle') {
+                        addLog(`✓ Attack completed. Total requests: ${data.requests_sent.toLocaleString()}`, 'success');
+                        resetUI();
+                    }
+                } catch (error) {
+                    console.error('Monitoring error:', error);
+                }
+            }, 1000);
+        }
+
+        function resetUI() {
+            clearInterval(attackInterval);
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').style.display = 'none';
+            document.getElementById('statusValue').textContent = 'Idle';
+            document.getElementById('statusValue').classList.remove('attacking');
+        }
+
+        function addLog(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+    </script>
+</body>
+</html>

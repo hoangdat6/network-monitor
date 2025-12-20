@@ -6,8 +6,9 @@
 # Quản lý toàn bộ hệ thống IDS/IPS với DDoS Detection
 # - Data Pipeline (Kafka, Zookeeper)
 # - Network Capture & Detection (CICFlowMeter, Flow Processor, DDoS Detector)
-# - Monitoring Stack (Prometheus, Grafana, cAdvisor, Node Exporter)
-# - Nginx Web Server
+# - Response System (Response Manager, Redis)
+# - Monitoring Stack (Prometheus, Grafana, cAdvisor, Node Exporter, Telegram Notifier)
+# - Nginx Web Server (with VTS Exporter)
 # - Metrics Processing (Prometheus-Kafka Adapter, Metrics Flattener)
 ###############################################################################
 
@@ -24,12 +25,23 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Source .env file
+if [ -f "./src/.env" ]; then
+    set -a
+    source ./src/.env
+    set +a
+else
+    echo "Error: .env file not found in ./src/.env"
+    exit 1
+fi
+
 # Docker compose files
 COMPOSE_DATA_PIPELINE="./src/docker-compose.data-pipeline.yml"
 COMPOSE_NETWORK="./src/docker-compose.network.yml"
 COMPOSE_MONITORING="./src/docker-compose.monitoring.yml"
 COMPOSE_NGINX="./src/docker-compose.nginx.yml"
 COMPOSE_PROM_METRIC="./src/docker-compose.prom-metric.yml"
+COMPOSE_RESPONSE="./src/docker-compose.response.yml"
 
 # Network name
 NETWORK_NAME="ids-network"
@@ -101,6 +113,7 @@ create_volumes() {
         "prometheus_data"
         "grafana_data"
         "nginx_logs"
+        "redis_data"
     )
     
     for volume in "${volumes[@]}"; do
@@ -173,7 +186,7 @@ start_data_pipeline() {
 }
 
 start_monitoring() {
-    print_header "KHỞI ĐỘNG MONITORING STACK (Prometheus, Grafana, cAdvisor, Node Exporter)"
+    print_header "KHỞI ĐỘNG MONITORING STACK (Prometheus, Grafana, cAdvisor, Node Exporter, Telegram)"
     
     docker-compose -f "$COMPOSE_MONITORING" up -d
     
@@ -181,34 +194,43 @@ start_monitoring() {
     wait_for_service "node-exporter" 10
     wait_for_service "cadvisor" 10
     wait_for_service "grafana" 20
+    wait_for_service "telegram-notifier" 10
     
-    check_service_health "Prometheus" "http://localhost:9090/-/healthy"
-    check_service_health "Grafana" "http://localhost:3000/api/health"
+    check_service_health "Prometheus" "http://localhost:${PROMETHEUS_HOST_PORT}/-/healthy"
+    check_service_health "Grafana" "http://localhost:${GRAFANA_PORT}/api/health"
+    check_service_health "Telegram Notifier" "http://localhost:${TELEGRAM_NOTIFIER_HOST_PORT}/metrics"
     
     print_success "Monitoring stack đã khởi động"
 }
 
 start_network_detection() {
-    print_header "KHỞI ĐỘNG NETWORK DETECTION (CICFlowMeter, Flow Processor, DDoS Detector)"
+    print_header "KHỞI ĐỘNG NETWORK DETECTION & RESPONSE (Flow, Detection, Response, Redis)"
     
     docker-compose -f "$COMPOSE_NETWORK" up -d
     
-    wait_for_service "ids_cicflowmeter" 15
+    wait_for_service "ids_cicflowmeter_v2" 15
     wait_for_service "ids_flow_processor" 15
     wait_for_service "ids_ddos_detector" 20
+    wait_for_service "ids_redis" 10
+    wait_for_service "ids_response_manager" 20
+    wait_for_service "ids_response_manager_exporter" 10
     
-    check_service_health "DDoS Detector" "http://localhost:8001/metrics"
+    check_service_health "DDoS Detector" "http://localhost:${DDOS_DETECTOR_HOST_PORT}/metrics"
+    check_service_health "Response Manager" "http://localhost:${RESPONSE_MANAGER_HOST_PORT}/health"
     
-    print_success "Network detection đã khởi động"
+    print_success "Network detection & response đã khởi động"
 }
 
 start_nginx() {
-    print_header "KHỞI ĐỘNG NGINX WEB SERVER"
+    print_header "KHỞI ĐỘNG NGINX WEB SERVER & EXPORTER"
     
     docker-compose -f "$COMPOSE_NGINX" up -d
     
     wait_for_service "nginx" 10
-    check_service_health "Nginx" "http://localhost:8080"
+    wait_for_service "nginx_vts_exporter" 10
+    
+    check_service_health "Nginx" "http://localhost:${NGINX_HOST_PORT}"
+    check_service_health "Nginx VTS Exporter" "http://localhost:${NGINX_VTS_EXPORTER_PORT}/metrics"
     
     print_success "Nginx đã khởi động"
 }
@@ -269,8 +291,10 @@ stop_all() {
     print_info "Dừng Nginx..."
     docker-compose -f "$COMPOSE_NGINX" down
     
-    print_info "Dừng Network Detection..."
+    print_info "Dừng Network Detection & Response..."
     docker-compose -f "$COMPOSE_NETWORK" down
+    # Also ensure response compose is down if it was used separately
+    # docker-compose -f "$COMPOSE_RESPONSE" down 2>/dev/null || true
     
     print_info "Dừng Monitoring..."
     docker-compose -f "$COMPOSE_MONITORING" down
@@ -295,6 +319,7 @@ stop_all_remove() {
     docker-compose -f "$COMPOSE_PROM_METRIC" down -v
     docker-compose -f "$COMPOSE_NGINX" down -v
     docker-compose -f "$COMPOSE_NETWORK" down -v
+    # docker-compose -f "$COMPOSE_RESPONSE" down -v 2>/dev/null || true
     docker-compose -f "$COMPOSE_MONITORING" down -v
     docker-compose -f "$COMPOSE_DATA_PIPELINE" down -v
     
@@ -320,8 +345,8 @@ restart_service() {
             print_info "Khởi động lại Data Pipeline..."
             docker-compose -f "$COMPOSE_DATA_PIPELINE" restart
             ;;
-        network|detection|ddos)
-            print_info "Khởi động lại Network Detection..."
+        network|detection|ddos|response)
+            print_info "Khởi động lại Network Detection & Response..."
             docker-compose -f "$COMPOSE_NETWORK" restart
             ;;
         monitoring|prometheus|grafana)
@@ -354,7 +379,7 @@ show_status() {
     print_header "TRẠNG THÁI HỆ THỐNG"
     
     echo -e "${BLUE}Container Status:${NC}"
-    docker ps --filter "network=ids-network" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "NAMES|ids_|prometheus|grafana|cadvisor|node-exporter|nginx|metrics"
+    docker ps --filter "network=ids-network" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "NAMES|ids_|prometheus|grafana|cadvisor|node-exporter|telegram|nginx|metrics"
     
     echo ""
     echo -e "${BLUE}Network:${NC}"
@@ -362,7 +387,7 @@ show_status() {
     
     echo ""
     echo -e "${BLUE}Volumes:${NC}"
-    docker volume ls --filter "name=network_flows|pcap_data|prometheus_data|grafana_data|nginx_logs" --format "table {{.Name}}\t{{.Driver}}"
+    docker volume ls --filter "name=network_flows|pcap_data|prometheus_data|grafana_data|nginx_logs|redis_data" --format "table {{.Name}}\t{{.Driver}}"
 }
 
 show_logs() {
@@ -379,13 +404,13 @@ show_logs() {
         kafka|zookeeper)
             docker-compose -f "$COMPOSE_DATA_PIPELINE" logs -f --tail="$lines" "$service"
             ;;
-        cicflowmeter|flow-processor|ddos-detector)
+        cicflowmeter|cicflowmeter-v2|flow-processor|ddos-detector|response-manager|response-manager-exporter|redis)
             docker-compose -f "$COMPOSE_NETWORK" logs -f --tail="$lines" "$service"
             ;;
-        prometheus|grafana|cadvisor|node-exporter)
+        prometheus|grafana|cadvisor|node-exporter|telegram-notifier)
             docker-compose -f "$COMPOSE_MONITORING" logs -f --tail="$lines" "$service"
             ;;
-        nginx)
+        nginx|nginx-vts-exporter)
             docker-compose -f "$COMPOSE_NGINX" logs -f --tail="$lines" "$service"
             ;;
         prometheus-kafka-adapter|metrics-flattener)
@@ -401,21 +426,25 @@ show_urls() {
     print_header "TRUY CẬP CÁC DỊCH VỤ"
     
     echo -e "${GREEN}📊 Monitoring:${NC}"
-    echo "  • Prometheus:  http://localhost:9090"
-    echo "  • Grafana:     http://localhost:3000  (admin/admin)"
-    echo "  • cAdvisor:    http://localhost:8081"
-    echo "  • Node Exporter: http://localhost:9100/metrics"
+    echo "  • Prometheus:  http://localhost:${PROMETHEUS_HOST_PORT}"
+    echo "  • Grafana:     http://localhost:${GRAFANA_PORT}  (admin/admin)"
+    echo "  • cAdvisor:    http://localhost:${CADVISOR_HOST_PORT}"
+    echo "  • Node Exporter: http://localhost:${NODE_EXPORTER_PORT}/metrics"
+    echo "  • Telegram Metrics: http://localhost:${TELEGRAM_NOTIFIER_HOST_PORT}/metrics"
     echo ""
-    echo -e "${GREEN}🔍 Detection:${NC}"
-    echo "  • DDoS Detector Metrics: http://localhost:8001/metrics"
+    echo -e "${GREEN}🔍 Detection & Response:${NC}"
+    echo "  • DDoS Detector Metrics: http://localhost:${DDOS_DETECTOR_HOST_PORT}/metrics"
+    echo "  • Response Manager API:  http://localhost:${RESPONSE_MANAGER_HOST_PORT}"
+    echo "  • Response Metrics:      http://localhost:${RESPONSE_EXPORTER_PORT}/metrics"
     echo ""
     echo -e "${GREEN}🌐 Web:${NC}"
-    echo "  • Nginx:       http://localhost:8080"
+    echo "  • Nginx:       http://localhost:${NGINX_HOST_PORT}"
+    echo "  • Nginx VTS:   http://localhost:${NGINX_VTS_EXPORTER_PORT}"
     echo ""
     echo -e "${GREEN}💡 Useful Commands:${NC}"
-    echo "  • View DDoS alerts:  docker exec ids_kafka kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic ddos-alerts"
-    echo "  • View network flows: docker exec ids_kafka kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic network-flows"
-    echo "  • Kafka topics:      docker exec ids_kafka kafka-topics.sh --bootstrap-server localhost:9092 --list"
+    echo "  • View DDoS alerts:  docker exec ids_kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic ddos-alerts"
+    echo "  • View network flows: docker exec ids_kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic network-flows"
+    echo "  • Kafka topics:      docker exec ids_kafka kafka-topics --bootstrap-server localhost:9092 --list"
 }
 
 ###############################################################################
@@ -429,7 +458,7 @@ health_check() {
     
     # Check Prometheus
     echo -n "Prometheus: "
-    if curl -sf http://localhost:9090/-/healthy > /dev/null 2>&1; then
+    if curl -sf http://localhost:${PROMETHEUS_HOST_PORT}/-/healthy > /dev/null 2>&1; then
         print_success "OK"
     else
         print_error "FAILED"
@@ -438,7 +467,7 @@ health_check() {
     
     # Check Grafana
     echo -n "Grafana: "
-    if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+    if curl -sf http://localhost:${GRAFANA_PORT}/api/health > /dev/null 2>&1; then
         print_success "OK"
     else
         print_error "FAILED"
@@ -447,7 +476,16 @@ health_check() {
     
     # Check DDoS Detector
     echo -n "DDoS Detector: "
-    if curl -sf http://localhost:8001/metrics > /dev/null 2>&1; then
+    if curl -sf http://localhost:${DDOS_DETECTOR_HOST_PORT}/metrics > /dev/null 2>&1; then
+        print_success "OK"
+    else
+        print_error "FAILED"
+        all_healthy=false
+    fi
+    
+    # Check Response Manager
+    echo -n "Response Manager: "
+    if curl -sf http://localhost:${RESPONSE_MANAGER_HOST_PORT}/health > /dev/null 2>&1; then
         print_success "OK"
     else
         print_error "FAILED"
@@ -456,7 +494,16 @@ health_check() {
     
     # Check Nginx
     echo -n "Nginx: "
-    if curl -sf http://localhost:8080 > /dev/null 2>&1; then
+    if curl -sf http://localhost:${NGINX_HOST_PORT} > /dev/null 2>&1; then
+        print_success "OK"
+    else
+        print_error "FAILED"
+        all_healthy=false
+    fi
+    
+    # Check Telegram Notifier
+    echo -n "Telegram Notifier: "
+    if curl -sf http://localhost:${TELEGRAM_NOTIFIER_HOST_PORT}/metrics > /dev/null 2>&1; then
         print_success "OK"
     else
         print_error "FAILED"
@@ -466,7 +513,22 @@ health_check() {
     # Check containers
     echo ""
     echo -e "${BLUE}Container Health:${NC}"
-    local expected_containers=("ids_zookeeper" "ids_kafka" "ids_ddos_detector" "ids_flow_processor" "prometheus" "grafana" "cadvisor" "node-exporter" "nginx")
+    local expected_containers=(
+        "ids_zookeeper" 
+        "ids_kafka" 
+        "ids_ddos_detector" 
+        "ids_flow_processor" 
+        "ids_cicflowmeter_v2"
+        "ids_redis"
+        "ids_response_manager"
+        "prometheus" 
+        "grafana" 
+        "cadvisor" 
+        "node-exporter" 
+        "telegram-notifier"
+        "nginx"
+        "nginx_vts_exporter"
+    )
     
     for container in "${expected_containers[@]}"; do
         echo -n "$container: "
@@ -497,7 +559,7 @@ update_prometheus_config() {
     
     # Reload Prometheus config
     docker exec prometheus sh -c "kill -HUP 1" 2>/dev/null || \
-    curl -X POST http://localhost:9090/-/reload
+    curl -X POST http://localhost:${PROMETHEUS_HOST_PORT}/-/reload
     
     print_success "Đã reload Prometheus config"
 }
@@ -526,14 +588,14 @@ ${YELLOW}Commands:${NC}
 
 ${YELLOW}Services:${NC}
   - data-pipeline   (Kafka, Zookeeper)
-  - network         (CICFlowMeter, Flow Processor, DDoS Detector)
-  - monitoring      (Prometheus, Grafana, cAdvisor, Node Exporter)
-  - nginx           (Web Server)
+  - network         (CICFlowMeter, Flow Processor, DDoS Detector, Response, Redis)
+  - monitoring      (Prometheus, Grafana, cAdvisor, Node Exporter, Telegram)
+  - nginx           (Web Server, VTS Exporter)
   - metrics         (Prometheus-Kafka Adapter, Metrics Flattener)
 
 ${YELLOW}Examples:${NC}
   $0 start                    # Khởi động toàn bộ
-  $0 restart network          # Khởi động lại network detection
+  $0 restart network          # Khởi động lại network detection & response
   $0 logs ddos-detector       # Xem logs DDoS Detector
   $0 health                   # Kiểm tra sức khỏe
   $0 status                   # Xem trạng thái

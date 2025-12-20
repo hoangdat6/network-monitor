@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  attack-panel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: attack-panel
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    networks:
+      - ids-network
+    privileged: true  # For sudo attacks
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./:/app/attack_panel
+      - ../ddos_attacks:/app/ddos_attacks
+
+networks:
+  ids-network:
+    external: true

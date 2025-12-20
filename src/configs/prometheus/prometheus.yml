@@ -1,6 +1,5 @@
 global:
   scrape_interval: 15s
-  evaluation_interval: 15s
 
 rule_files:
   - "alert_rules.yml"
@@ -17,26 +16,38 @@ scrape_configs:
     static_configs:
       - targets: ['node-exporter:9100']
 
-  - job_name: 'cadvisor'
-    static_configs:
-      - targets: ['cadvisor:8080']
+  # - job_name: 'cadvisor'
+  #   static_configs:
+  #     - targets: ['cadvisor:8080']
 
   - job_name: 'ddos-detector'
     static_configs:
       - targets: ['ids_ddos_detector:8000']
 
-  - job_name: 'nginx-exporter'
+  - job_name: 'rule-based-detector'
     static_configs:
-      - targets: ['nginx-exporter:9113']
+      - targets: ['ids_rule_detector:8000']
 
+  - job_name: 'response-manager-exporter'
+    static_configs:
+      - targets: ['ids_response_manager_exporter:9091']
 
-remote_write:
-  - url: "http://prometheus-kafka-adapter:8080/receive"
-    write_relabel_configs:
-      # Chỉ giữ lại metric cần thiết
+  - job_name: 'nginx-vts-exporter'
+    static_configs:
+      - targets: ['nginx_vts_exporter:9913']
+    metric_relabel_configs:
+      # Keep important metrics
       - source_labels: [__name__]
-        regex: "node:cpu_usage:ratio|node:memory_usage:bytes|node:disk_usage:bytes|node:network_rx:rate|node:network_tx:rate"
+        regex: 'nginx_server_requests|nginx_server_bytes|nginx_server_cache|nginx_server_connections'
         action: keep
+
+# remote_write:
+#   - url: "http://prometheus-kafka-adapter:8080/receive"
+#     write_relabel_configs:
+#       # Chỉ giữ lại metric cần thiết
+#       - source_labels: [__name__]
+#         regex: "node:cpu_usage:ratio|node:memory_usage:bytes|node:disk_usage:bytes|node:network_rx:rate|node:network_tx:rate"
+#         action: keep
 
 # remote_write:
 #   - url: "http://otel-collector:19291/api/v1/write"

@@ -50,110 +50,29 @@ class FlowProcessor:
     Process CICFlowMeter CSV files and stream to Kafka
     """
     
-    # Column mapping: cicflowmeter output -> CICIDS2017 format
-    COLUMN_MAPPING = {
-        'flow_duration': 'Flow Duration',
-        'tot_fwd_pkts': 'Total Fwd Packets',
-        'tot_bwd_pkts': 'Total Backward Packets',
-        'totlen_fwd_pkts': 'Total Length of Fwd Packets',
-        'totlen_bwd_pkts': 'Total Length of Bwd Packets',
-        'fwd_pkt_len_max': 'Fwd Packet Length Max',
-        'fwd_pkt_len_min': 'Fwd Packet Length Min',
-        'fwd_pkt_len_mean': 'Fwd Packet Length Mean',
-        'fwd_pkt_len_std': 'Fwd Packet Length Std',
-        'bwd_pkt_len_max': 'Bwd Packet Length Max',
-        'bwd_pkt_len_min': 'Bwd Packet Length Min',
-        'bwd_pkt_len_mean': 'Bwd Packet Length Mean',
-        'bwd_pkt_len_std': 'Bwd Packet Length Std',
-        'flow_byts_s': 'Flow Bytes/s',
-        'flow_pkts_s': 'Flow Packets/s',
-        'flow_iat_mean': 'Flow IAT Mean',
-        'flow_iat_std': 'Flow IAT Std',
-        'flow_iat_max': 'Flow IAT Max',
-        'flow_iat_min': 'Flow IAT Min',
-        'fwd_iat_tot': 'Fwd IAT Total',
-        'fwd_iat_mean': 'Fwd IAT Mean',
-        'fwd_iat_std': 'Fwd IAT Std',
-        'fwd_iat_max': 'Fwd IAT Max',
-        'fwd_iat_min': 'Fwd IAT Min',
-        'bwd_iat_tot': 'Bwd IAT Total',
-        'bwd_iat_mean': 'Bwd IAT Mean',
-        'bwd_iat_std': 'Bwd IAT Std', 
-        'bwd_iat_max': 'Bwd IAT Max',
-        'bwd_iat_min': 'Bwd IAT Min',
-        'fwd_psh_flags': 'Fwd PSH Flags',
-        'bwd_psh_flags': 'Bwd PSH Flags',
-        'fwd_urg_flags': 'Fwd URG Flags',
-        'bwd_urg_flags': 'Bwd URG Flags',
-        'fwd_header_len': 'Fwd Header Length',
-        'bwd_header_len': 'Bwd Header Length',
-        'fwd_pkts_s': 'Fwd Packets/s',
-        'bwd_pkts_s': 'Bwd Packets/s',
-        'pkt_len_min': 'Min Packet Length',
-        'pkt_len_max': 'Max Packet Length',
-        'pkt_len_mean': 'Packet Length Mean',
-        'pkt_len_std': 'Packet Length Std',
-        'pkt_len_var': 'Packet Length Variance',
-        'fin_flag_cnt': 'FIN Flag Count',
-        'syn_flag_cnt': 'SYN Flag Count',
-        'rst_flag_cnt': 'RST Flag Count',
-        'psh_flag_cnt': 'PSH Flag Count',
-        'ack_flag_cnt': 'ACK Flag Count',
-        'urg_flag_cnt': 'URG Flag Count',
-        'cwr_flag_count': 'CWE Flag Count',
-        'ece_flag_cnt': 'ECE Flag Count',
-        'down_up_ratio': 'Down/Up Ratio',
-        'pkt_size_avg': 'Average Packet Size',
-        'fwd_seg_size_avg': 'Avg Fwd Segment Size',
-        'bwd_seg_size_avg': 'Avg Bwd Segment Size',
-        'fwd_byts_b_avg': 'Fwd Avg Bytes/Bulk',
-        'fwd_pkts_b_avg': 'Fwd Avg Packets/Bulk',
-        'fwd_blk_rate_avg': 'Fwd Avg Bulk Rate',
-        'bwd_byts_b_avg': 'Bwd Avg Bytes/Bulk',
-        'bwd_pkts_b_avg': 'Bwd Avg Packets/Bulk',
-        'bwd_blk_rate_avg': 'Bwd Avg Bulk Rate',
-        'subflow_fwd_pkts': 'Subflow Fwd Packets',
-        'subflow_fwd_byts': 'Subflow Fwd Bytes',
-        'subflow_bwd_pkts': 'Subflow Bwd Packets',
-        'subflow_bwd_byts': 'Subflow Bwd Bytes',
-        'init_fwd_win_byts': 'Init_Win_bytes_forward',
-        'init_bwd_win_byts': 'Init_Win_bytes_backward',
-        'fwd_act_data_pkts': 'act_data_pkt_fwd',
-        'fwd_seg_size_min': 'min_seg_size_forward',
-        'active_mean': 'Active Mean',
-        'active_std': 'Active Std',
-        'active_max': 'Active Max',
-        'active_min': 'Active Min',
-        'idle_mean': 'Idle Mean',
-        'idle_std': 'Idle Std',
-        'idle_max': 'Idle Max',
-        'idle_min': 'Idle Min',
-    }
+    # Keep original CICFlowMeter column names (snake_case format)
+    # No column mapping needed - maintain consistency with ML model features
     
     def __init__(self, 
                  input_dir: str = '/output',  # Đọc từ /output (shared volume với cicflowmeter)
                  kafka_servers: List[str] = ['kafka:9092'],
                  kafka_topic: str = 'network-flows',
                  batch_size: int = 1000,
-                 filter_local_ips: bool = True):
+                 filter_local_ips: bool = True,
+                 max_retries: int = 3,
+                 ip_filter_config_path: str = None):
         
         self.input_dir = input_dir
         self.kafka_topic = kafka_topic
         self.batch_size = batch_size
         self.processed_files = set()
+        self.failed_files = {} 
         self.filter_local_ips = filter_local_ips
+        self.max_retries = max_retries
+        self.max_processed_cache = 10000  
         
-        # Danh sách local/private IP ranges để lọc
-        self.local_ip_ranges = [
-            '192.168.',  # Private Class C
-            '10.',       # Private Class A
-            '172.16.', '172.17.', '172.18.', '172.19.',
-            '172.20.', '172.21.', '172.22.', '172.23.',
-            '172.24.', '172.25.', '172.26.', '172.27.',
-            '172.28.', '172.29.', '172.30.', '172.31.',  # Private Class B
-            '127.',      # Loopback
-            '169.254.',  # Link-local
-        ]
+        # Load IP filtering configuration from YAML
+        self._load_ip_filter_config(ip_filter_config_path)
         
         # Initialize Kafka producer
         self.producer = KafkaProducer(
@@ -167,6 +86,60 @@ class FlowProcessor:
         )
         
         logger.info(f"FlowProcessor initialized: {input_dir} -> {kafka_topic}")
+        logger.info(f"IP Filtering: {self.filter_local_ips}, Config: {ip_filter_config_path or 'default'}")
+    
+    def _load_ip_filter_config(self, config_path: Optional[str] = None):
+        """
+        Load IP filtering configuration from YAML file
+        Falls back to defaults if file not found
+        """
+        import yaml
+        
+        # Default config path
+        if config_path is None:
+            config_path = os.path.join(
+                os.path.dirname(__file__), 
+                'ip_filter_config.yaml'
+            )
+        
+        # Default values (fallback)
+        default_config = {
+            'enabled': True,
+            'local_ip_ranges': [
+                '192.168.', '10.', '127.', '169.254.',
+                '172.16.', '172.17.', '172.18.', '172.19.',
+                '172.20.', '172.21.', '172.22.', '172.23.',
+                '172.24.', '172.25.', '172.26.', '172.27.',
+                '172.28.', '172.29.', '172.30.', '172.31.',
+            ],
+            'trusted_ips': [],
+            'trusted_ip_prefixes': []
+        }
+        
+        try:
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config = yaml.safe_load(f)
+                    logger.info(f"Loaded IP filter config from: {config_path}")
+            else:
+                logger.warning(f"Config file not found: {config_path}, using defaults")
+                config = default_config
+        except Exception as e:
+            logger.error(f"Failed to load IP filter config: {e}, using defaults")
+            config = default_config
+        
+        # Apply configuration
+        self.filter_enabled = config.get('enabled', True)
+        self.local_ip_ranges = config.get('local_ip_ranges', default_config['local_ip_ranges'])
+        self.trusted_ips = config.get('trusted_ips', [])
+        self.trusted_ip_prefixes = config.get('trusted_ip_prefixes', [])
+        
+        # Log loaded configuration
+        logger.info(f"IP Filter Config:")
+        logger.info(f"  - Enabled: {self.filter_enabled}")
+        logger.info(f"  - Local IP ranges: {len(self.local_ip_ranges)} ranges")
+        logger.info(f"  - Trusted IPs: {len(self.trusted_ips)} IPs")
+        logger.info(f"  - Trusted prefixes: {len(self.trusted_ip_prefixes)} prefixes")
         
     def validate_csv(self, file_path: str) -> bool:
         """
@@ -190,13 +163,8 @@ class FlowProcessor:
             missing_cols = [col for col in required_cols if col not in df_sample.columns]
             
             if missing_cols:
-                logger.warning(f"Missing columns {missing_cols} in: {file_path}")
-                # Try alternative column names
-                alt_cols = ['Src IP', 'Dst IP', 'Total Fwd Packets']
-                alt_missing = [col for col in alt_cols if col not in df_sample.columns]
-                if alt_missing:
-                    logger.warning(f"Alternative columns also missing: {alt_missing}")
-                    return False
+                logger.warning(f"Missing required columns {missing_cols} in: {file_path}")
+                return False
                 
             logger.debug(f"CSV validation passed: {file_path}")
             return True
@@ -205,18 +173,32 @@ class FlowProcessor:
             logger.error(f"CSV validation failed for {file_path}: {e}")
             return False
     
-    def is_local_ip(self, ip: str) -> bool:
+    def should_filter_ip(self, ip: str) -> bool:
         """
-        Check if IP is local/private
+        Check if IP should be filtered out (local, private, or trusted)
+        Returns True if IP should be FILTERED (removed)
         """
         if pd.isna(ip) or not isinstance(ip, str):
             return True
         
-        return any(ip.startswith(prefix) for prefix in self.local_ip_ranges)
+        # Check local/private IPs
+        if any(ip.startswith(prefix) for prefix in self.local_ip_ranges):
+            return True
+        
+        # Check exact trusted IPs (DNS servers, etc.)
+        if ip in self.trusted_ips:
+            return True
+        
+        # Check trusted IP prefixes (Google, Cloudflare, etc.)
+        if any(ip.startswith(prefix) for prefix in self.trusted_ip_prefixes):
+            return True
+        
+        return False
     
     def filter_flows(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Filter flows - chỉ giữ lại traffic từ external IPs
+        Filter flows - remove local IPs and trusted IPs (DNS, CDN, etc.)
+        Only keep traffic from potentially malicious external sources
         """
         if not self.filter_local_ips:
             return df
@@ -234,14 +216,14 @@ class FlowProcessor:
             logger.warning("No source IP column found, skipping IP filtering")
             return df
         
-        # Lọc: chỉ giữ flows từ external IPs
-        df['is_external'] = df[src_ip_col].apply(lambda ip: not self.is_local_ip(ip))
-        df_filtered = df[df['is_external']].copy()
-        df_filtered = df_filtered.drop(columns=['is_external'])
+        # Lọc: chỉ giữ flows từ external IPs (không phải local và không phải trusted)
+        df['should_keep'] = df[src_ip_col].apply(lambda ip: not self.should_filter_ip(ip))
+        df_filtered = df[df['should_keep']].copy()
+        df_filtered = df_filtered.drop(columns=['should_keep'])
         
         filtered_count = initial_count - len(df_filtered)
         if filtered_count > 0:
-            logger.info(f"Filtered {filtered_count} local IP flows, kept {len(df_filtered)} external flows")
+            logger.info(f"Filtered {filtered_count} flows (local/trusted IPs), kept {len(df_filtered)} external flows")
         
         return df_filtered
     
@@ -252,38 +234,38 @@ class FlowProcessor:
         df = df.copy()
         
         # Ensure required columns exist
-        if 'Total Fwd Packets' not in df.columns:
-            df['Total Fwd Packets'] = 0
-        if 'Total Backward Packets' not in df.columns:
-            df['Total Backward Packets'] = 0
+        if 'tot_fwd_pkts' not in df.columns:
+            df['tot_fwd_pkts'] = 0
+        if 'tot_bwd_pkts' not in df.columns:
+            df['tot_bwd_pkts'] = 0
         
         # 1. Total packets
-        df['total_packets'] = df['Total Fwd Packets'].fillna(0) + df['Total Backward Packets'].fillna(0)
+        df['total_packets'] = df['tot_fwd_pkts'].fillna(0) + df['tot_bwd_pkts'].fillna(0)
         
         # 2. Total bytes
-        fwd_bytes_col = 'Total Length of Fwd Packets' if 'Total Length of Fwd Packets' in df.columns else 'Subflow Fwd Bytes'
-        bwd_bytes_col = 'Total Length of Bwd Packets' if 'Total Length of Bwd Packets' in df.columns else 'Subflow Bwd Bytes'
+        fwd_bytes_col = 'totlen_fwd_pkts' if 'totlen_fwd_pkts' in df.columns else 'subflow_fwd_byts'
+        bwd_bytes_col = 'totlen_bwd_pkts' if 'totlen_bwd_pkts' in df.columns else 'subflow_bwd_byts'
         
         df['total_fwd_bytes'] = df.get(fwd_bytes_col, pd.Series([0]*len(df))).fillna(0)
         df['total_bwd_bytes'] = df.get(bwd_bytes_col, pd.Series([0]*len(df))).fillna(0)
         df['total_bytes'] = df['total_fwd_bytes'] + df['total_bwd_bytes']
         
         # 3. Flow duration (ensure positive, add small epsilon to avoid division by zero)
-        if 'Flow Duration' in df.columns:
-            df['Flow Duration'] = pd.to_numeric(df['Flow Duration'], errors='coerce').fillna(0).clip(lower=0) + 1e-6
+        if 'flow_duration' in df.columns:
+            df['flow_duration'] = pd.to_numeric(df['flow_duration'], errors='coerce').fillna(0).clip(lower=0) + 1e-6
         else:
-            df['Flow Duration'] = 1.0
+            df['flow_duration'] = 1.0
         
         # 4. Derived rate features
-        df['packet_rate'] = df['total_packets'] / df['Flow Duration']
-        df['byte_rate'] = df['total_bytes'] / df['Flow Duration']
+        df['packet_rate'] = df['total_packets'] / df['flow_duration']
+        df['byte_rate'] = df['total_bytes'] / df['flow_duration']
         df['mean_packet_size'] = (df['total_bytes'] / df['total_packets'].replace({0: np.nan})).fillna(0)
-        df['fwd_ratio'] = (df['Total Fwd Packets'] / df['total_packets'].replace({0: np.nan})).fillna(0)
+        df['fwd_ratio'] = (df['tot_fwd_pkts'] / df['total_packets'].replace({0: np.nan})).fillna(0)
         
         # 5. IAT range
-        if 'Flow IAT Max' in df.columns and 'Flow IAT Min' in df.columns:
-            df['iat_range'] = (pd.to_numeric(df['Flow IAT Max'], errors='coerce').fillna(0) -
-                              pd.to_numeric(df['Flow IAT Min'], errors='coerce').fillna(0)).clip(lower=0)
+        if 'flow_iat_max' in df.columns and 'flow_iat_min' in df.columns:
+            df['iat_range'] = (pd.to_numeric(df['flow_iat_max'], errors='coerce').fillna(0) -
+                              pd.to_numeric(df['flow_iat_min'], errors='coerce').fillna(0)).clip(lower=0)
         else:
             df['iat_range'] = 0.0
         
@@ -319,8 +301,22 @@ class FlowProcessor:
         """
         if file_path in self.processed_files:
             return 0
+        
+        # Check if file has exceeded retry limit
+        if file_path in self.failed_files:
+            if self.failed_files[file_path] >= self.max_retries:
+                logger.error(f"File {file_path} exceeded {self.max_retries} retries, removing...")
+                try:
+                    os.remove(file_path)
+                    self.processed_files.add(file_path)
+                    del self.failed_files[file_path]
+                except Exception as e:
+                    logger.error(f"Failed to remove error file {file_path}: {e}")
+                return 0
             
         if not self.validate_csv(file_path):
+            # Increment retry count for failed validation
+            self.failed_files[file_path] = self.failed_files.get(file_path, 0) + 1
             return 0
             
         try:
@@ -329,9 +325,7 @@ class FlowProcessor:
             # Read CSV
             df = pd.read_csv(file_path)
             
-            # Rename columns to CICIDS2017 format
-            df = df.rename(columns=self.COLUMN_MAPPING)
-            
+            # No column renaming - keep original CICFlowMeter names
             # Filter local IPs (chỉ giữ traffic từ bên ngoài)
             df = self.filter_flows(df)
             
@@ -352,33 +346,60 @@ class FlowProcessor:
             df['source_file'] = os.path.basename(file_path)
             df['processed_at'] = pd.Timestamp.now().isoformat()
             
-            # Send to Kafka in batches
+            # Send to Kafka in batches (async for performance)
             flows_sent = 0
+            futures = []  # Track futures for error handling
+            
             for start_idx in range(0, len(df), self.batch_size):
                 batch = df.iloc[start_idx:start_idx + self.batch_size]
                 
-                for _, row in batch.iterrows():
-                    flow_data = row.to_dict()
-                    
+                # Convert batch to dict list (faster than iterrows)
+                batch_dicts = batch.to_dict('records')
+                
+                for flow_data in batch_dicts:
                     try:
+                        # Send async (don't wait for confirmation)
                         future = self.producer.send(self.kafka_topic, flow_data)
-                        future.get(timeout=10)  # Wait for confirmation
+                        futures.append(future)
                         flows_sent += 1
                         
                     except KafkaError as e:
                         logger.error(f"Failed to send flow to Kafka: {e}")
                         continue
                 
-                if flows_sent % 100 == 0:
+                # Log progress every 1000 flows
+                if flows_sent % 1000 == 0:
                     logger.info(f"Sent {flows_sent}/{len(df)} flows...")
             
-            # Flush producer
-            self.producer.flush(timeout=30)
+            # Flush producer and wait for all messages
+            logger.info(f"Flushing {len(futures)} messages to Kafka...")
+            self.producer.flush(timeout=60)
+            
+            # Check for errors (quick check, don't block)
+            errors = 0
+            for future in futures:
+                try:
+                    future.get(timeout=0.001)  # Very quick check
+                except Exception:
+                    errors += 1
+            
+            if errors > 0:
+                logger.warning(f"Failed to send {errors}/{flows_sent} flows")
             
             logger.info(f"Successfully processed {flows_sent} flows from {file_path}")
             
             # Mark as processed
             self.processed_files.add(file_path)
+            
+            # Prevent memory leak: clear old processed files cache if too large
+            if len(self.processed_files) > self.max_processed_cache:
+                logger.warning(f"Processed files cache exceeded {self.max_processed_cache}, clearing oldest 50%...")
+                # Keep only recent half (FIFO-like behavior)
+                self.processed_files = set(list(self.processed_files)[self.max_processed_cache // 2:])
+            
+            # Remove from failed files if it was there
+            if file_path in self.failed_files:
+                del self.failed_files[file_path]
             
             # Remove processed file
             os.remove(file_path)
@@ -388,6 +409,20 @@ class FlowProcessor:
             
         except Exception as e:
             logger.error(f"Error processing {file_path}: {e}")
+            
+            # Increment retry count
+            self.failed_files[file_path] = self.failed_files.get(file_path, 0) + 1
+            
+            # Remove file if max retries exceeded
+            if self.failed_files[file_path] >= self.max_retries:
+                logger.error(f"Removing corrupted file after {self.max_retries} failed attempts: {file_path}")
+                try:
+                    os.remove(file_path)
+                    self.processed_files.add(file_path)
+                    del self.failed_files[file_path]
+                except Exception as remove_error:
+                    logger.error(f"Failed to remove corrupted file: {remove_error}")
+            
             return 0
     
     def health_check(self) -> Dict:
@@ -407,35 +442,83 @@ class FlowProcessor:
             'input_directory': self.input_dir,
             'kafka_topic': self.kafka_topic,
             'processed_files_count': len(self.processed_files),
+            'failed_files_count': len(self.failed_files),
+            'pending_retries': list(self.failed_files.keys()) if self.failed_files else [],
             'timestamp': pd.Timestamp.now().isoformat()
         }
 
-class CSVWatcher(FileSystemEventHandler):
+class CSVPoller:
     """
-    File system watcher for CSV files
+    Polling-based CSV file processor - checks for stable files
     """
     
-    def __init__(self, processor: FlowProcessor):
+    def __init__(self, processor: FlowProcessor, poll_interval: int = 5):
         self.processor = processor
+        self.poll_interval = poll_interval
+        self.file_sizes = {}  # Track file sizes to detect stability
+        self.stability_threshold = 5  # File must be stable for 5 seconds
         
-    def on_created(self, event):
-        # Fix: properly handle event.is_directory for FileCreatedEvent
+    def is_file_stable(self, file_path: str) -> bool:
+        """Check if file size hasn't changed for stability_threshold seconds"""
         try:
-            if event.is_directory:
-                return
-        except AttributeError:
-            # For FileCreatedEvent without is_directory attribute
-            if hasattr(event, 'is_dir'):
-                if event.is_dir:
-                    return
-            # If neither attribute exists, assume it's a file
-            pass
+            current_size = os.path.getsize(file_path)
+            current_time = time.time()
             
-        if event.src_path.endswith('.csv'):
-            logger.info(f"New CSV detected: {event.src_path}")
-            # Wait a bit to ensure file is fully written
-            time.sleep(2)
-            self.processor.process_csv(event.src_path)
+            # Skip empty files
+            if current_size == 0:
+                return False
+            
+            if file_path not in self.file_sizes:
+                # First time seeing this file
+                self.file_sizes[file_path] = (current_size, current_time)
+                return False
+            
+            last_size, last_check_time = self.file_sizes[file_path]
+            
+            if current_size != last_size:
+                # Size changed, update and mark as unstable
+                self.file_sizes[file_path] = (current_size, current_time)
+                return False
+            
+            # Size hasn't changed, check if enough time has passed
+            if (current_time - last_check_time) >= self.stability_threshold:
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error checking file stability for {file_path}: {e}")
+            return False
+    
+    def poll(self):
+        """Poll directory for stable CSV files"""
+        try:
+            if not os.path.exists(self.processor.input_dir):
+                return
+            
+            for filename in os.listdir(self.processor.input_dir):
+                if not (filename.startswith('flows_') and filename.endswith('.csv')):
+                    continue
+                
+                file_path = os.path.join(self.processor.input_dir, filename)
+                
+                # Skip if already processed
+                if file_path in self.processor.processed_files:
+                    # Clean up from tracking dict
+                    if file_path in self.file_sizes:
+                        del self.file_sizes[file_path]
+                    continue
+                
+                # Check if file is stable
+                if self.is_file_stable(file_path):
+                    logger.info(f"Stable CSV file detected: {file_path}")
+                    self.processor.process_csv(file_path)
+                    # Clean up from tracking
+                    if file_path in self.file_sizes:
+                        del self.file_sizes[file_path]
+                        
+        except Exception as e:
+            logger.error(f"Error during polling: {e}")
 
 def main():
     """
@@ -447,6 +530,8 @@ def main():
     kafka_topic = os.getenv('KAFKA_TOPIC', 'network-flows')
     batch_size = int(os.getenv('BATCH_SIZE', '1000'))
     filter_local = os.getenv('FILTER_LOCAL_IPS', 'true').lower() == 'true'
+    max_retries = int(os.getenv('MAX_FILE_RETRIES', '3'))
+    ip_filter_config = os.getenv('IP_FILTER_CONFIG_PATH', None)  # Optional custom config path
     
     # Create processor
     processor = FlowProcessor(
@@ -454,7 +539,9 @@ def main():
         kafka_servers=kafka_servers,
         kafka_topic=kafka_topic,
         batch_size=batch_size,
-        filter_local_ips=filter_local
+        filter_local_ips=filter_local,
+        max_retries=max_retries,
+        ip_filter_config_path=ip_filter_config
     )
     
     # Process existing completed files (not health check files)
@@ -466,18 +553,17 @@ def main():
                 if os.path.exists(file_path):
                     processor.process_csv(file_path)
     
-    # Start file watcher
-    event_handler = CSVWatcher(processor)
-    observer = Observer()
-    observer.schedule(event_handler, input_dir, recursive=False)
-    observer.start()
+    # Start file poller
+    poller = CSVPoller(processor, poll_interval=5)
     
-    logger.info(f"Flow processor started, watching: {input_dir}")
+    logger.info(f"Flow processor started, polling: {input_dir} every {poller.poll_interval}s")
     
     # Graceful shutdown handler
+    running = True
     def signal_handler(signum, frame):
+        nonlocal running
         logger.info("Shutting down flow processor...")
-        observer.stop()
+        running = False
         processor.producer.close()
         sys.exit(0)
     
@@ -485,12 +571,11 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
     
     try:
-        while True:
-            time.sleep(1)
+        while running:
+            poller.poll()
+            time.sleep(poller.poll_interval)
     except KeyboardInterrupt:
         signal_handler(None, None)
-    finally:
-        observer.join()
 
 if __name__ == "__main__":
     main()

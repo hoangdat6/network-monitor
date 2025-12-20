@@ -8,7 +8,7 @@ services:
     container_name: prometheus
     restart: unless-stopped
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_HOST_PORT}:${PROMETHEUS_CONTAINER_PORT}"
     volumes:
       - ./configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./configs/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
@@ -27,7 +27,7 @@ services:
     restart: unless-stopped
     pid: host
     ports:
-      - "9100:9100"
+      - "${NODE_EXPORTER_PORT}:${NODE_EXPORTER_PORT}"
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -40,28 +40,12 @@ services:
     networks:
       - ids-network
 
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    container_name: cadvisor
-    restart: unless-stopped
-    ports:
-      - "8081:8080"
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-    command:
-      - "--enable_metrics=cpu,memory,disk,network"
-    networks:
-      - ids-network
-
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT}:${GRAFANA_PORT}"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
@@ -78,21 +62,21 @@ services:
 
   telegram-notifier:
     build:
-      context: ./response/telegram-notifier
+      context: ./infra/telegram-notifier
       dockerfile: Dockerfile
     container_name: telegram-notifier
     restart: unless-stopped
     ports:
-      - "8005:8000"
+      - "${TELEGRAM_NOTIFIER_HOST_PORT}:${TELEGRAM_NOTIFIER_CONTAINER_PORT}"
     environment:
       # Telegram Configuration - REQUIRED
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
       # Kafka Configuration
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:${KAFKA_PORT}
       - KAFKA_ALERT_TOPIC=ddos-alerts
       # Metrics port
-      - METRICS_PORT=8000
+      - METRICS_PORT=${TELEGRAM_NOTIFIER_CONTAINER_PORT}
       # Anti-spam Configuration
       - RATE_LIMIT_WINDOW=300           # Time window in seconds (default: 5 minutes)
       - MAX_ALERTS_PER_WINDOW=5         # Max alerts per window before rate limiting
@@ -104,7 +88,7 @@ services:
     depends_on:
       - prometheus
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/metrics', timeout=5)"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:${TELEGRAM_NOTIFIER_CONTAINER_PORT}/metrics', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3

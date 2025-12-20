@@ -1,0 +1,83 @@
+# IP Filtering Configuration
+# Các IPs và IP ranges sẽ bị LOẠI BỎ khỏi detection
+# Chỉ cần restart container để áp dụng thay đổi
+
+# Bật/tắt filtering
+enabled: true
+
+# Private/Local IP ranges - luôn được filter
+local_ip_ranges:
+  - "192.168."      # Private Class C
+  - "10."           # Private Class A
+  - "172.16."       # Private Class B
+  - "172.17."
+  - "172.18."
+  - "172.19."
+  - "172.20."
+  - "172.21."
+  - "172.22."
+  - "172.23."
+  - "172.24."
+  - "172.25."
+  - "172.26."
+  - "172.27."
+  - "172.28."
+  - "172.29."
+  - "172.30."
+  - "172.31."
+  - "127."          # Loopback
+  - "169.254."      # Link-local
+
+# Trusted IPs - DNS servers, specific IPs to whitelist
+trusted_ips:
+  # Google DNS
+  - "8.8.8.8"
+  - "8.8.4.4"
+  # Cloudflare DNS
+  - "1.1.1.1"
+  - "1.0.0.1"
+  # Quad9 DNS
+  - "9.9.9.9"
+  - "149.112.112.112"
+  # OpenDNS
+  - "208.67.222.222"
+  - "208.67.220.220"
+  # Add your custom trusted IPs here
+  # - "x.x.x.x"
+
+# Trusted IP prefixes - CDN, cloud services, etc.
+trusted_ip_prefixes:
+  # Google services (Gmail, Drive, YouTube, etc.)
+  - "74.125."       # Google
+  - "142.250."      # Google
+  - "142.251."      # Google
+  - "172.217."      # Google
+  - "172.253."      # Google
+  - "216.58."       # Google
+  - "64.233."       # Google
+  
+  # Cloudflare CDN
+  - "104.16."
+  - "104.17."
+  - "104.18."
+  
+  # AWS (uncomment if you want to filter AWS traffic)
+  # - "52."
+  # - "54."
+  
+  # Microsoft Azure (uncomment if you want to filter Azure traffic)
+  # - "13."
+  # - "40."
+  
+  # Facebook/Meta
+  # - "31.13."
+  # - "157.240."
+  
+  # Add your custom trusted prefixes here
+  # - "x.x."
+
+# Custom rules (advanced)
+# Bạn có thể thêm regex patterns hoặc CIDR ranges ở đây
+# custom_patterns:
+#   - pattern: "^8\\.8\\."
+#     description: "Google DNS range"
