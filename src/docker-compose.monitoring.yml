@@ -25,9 +25,8 @@ services:
     image: prom/node-exporter:latest
     container_name: node-exporter
     restart: unless-stopped
+    network_mode: host
     pid: host
-    ports:
-      - "${NODE_EXPORTER_PORT}:${NODE_EXPORTER_PORT}"
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -37,6 +36,20 @@ services:
       - "--path.sysfs=/host/sys"
       - "--path.rootfs=/rootfs"
       - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+  
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    restart: unless-stopped
+    ports:
+      - "${CADVISOR_HOST_PORT}:${CADVISOR_CONTAINER_PORT}"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    command:
+      - "--enable_metrics=cpu,memory,disk,network"
     networks:
       - ids-network
 

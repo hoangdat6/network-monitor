@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  # DDoS Detector: ML-based detection với sliding window aggregation
+  ml-detector:
+    build: ./infra/ml-detector
+    container_name: ids_ml_detector
+    env_file:
+      - .env
+    environment:
+      - MODEL_DIR=${DDOS_MODEL_DIR}
+      - KAFKA_BROKERS=${DDOS_KAFKA_BROKERS}
+      - KAFKA_INPUT_TOPIC=${DDOS_KAFKA_INPUT_TOPIC}
+      - KAFKA_OUTPUT_TOPIC=${DDOS_KAFKA_OUTPUT_TOPIC}
+      - WINDOW_SIZE=${DDOS_WINDOW_SIZE}
+      - ALERT_COOLDOWN=${DDOS_ALERT_COOLDOWN}
+      - METRICS_PORT=${DDOS_METRICS_PORT}
+    volumes:
+      - ./models/final_model:/models:ro    # Mount final_model folder with XGBoost reduced model
+    ports:
+      - "${DDOS_DETECTOR_HOST_PORT}:${DDOS_DETECTOR_CONTAINER_PORT}"                        # Prometheus metrics
+    restart: always
+    networks:
+      - ids-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${DDOS_DETECTOR_CONTAINER_PORT}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Rule Detector: Rule-based detection & filtering
+  rule-detector:
+    build: ./infra/rule-based-detector
+    container_name: ids_rule_detector
+    env_file:
+      - .env
+    environment:
+      - RULES_PATH=/app/rules.yaml
+      - KAFKA_BROKERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - METRICS_PORT=8000
+    ports:
+      - "${RULE_DETECTOR_HOST_PORT}:8000"
+    restart: always
+    networks:
+      - ids-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  ids-network:
+    external: true

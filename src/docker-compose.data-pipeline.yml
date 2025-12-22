@@ -4,6 +4,7 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: ids_zookeeper
+    restart: always
     user: "0:0"  # Run as root to avoid permission issues
     environment:
       ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT}
@@ -22,6 +23,7 @@ services:
     image: confluentinc/cp-kafka:7.5.0
     container_name: ids_kafka
     user: "0:0"  # Run as root to avoid permission issues
+    restart: always
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:${ZOOKEEPER_CLIENT_PORT}

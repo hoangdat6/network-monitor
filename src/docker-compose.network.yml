@@ -50,85 +50,9 @@ services:
     networks:
       - ids-network
 
-  # DDoS Detector: ML-based detection với sliding window aggregation
-  ml-detector:
-    build: ./infra/ml-detector
-    container_name: ids_ml_detector
-    env_file:
-      - .env
-    environment:
-      - MODEL_DIR=${DDOS_MODEL_DIR}
-      - KAFKA_BROKERS=${DDOS_KAFKA_BROKERS}
-      - KAFKA_INPUT_TOPIC=${DDOS_KAFKA_INPUT_TOPIC}
-      - KAFKA_OUTPUT_TOPIC=${DDOS_KAFKA_OUTPUT_TOPIC}
-      - WINDOW_SIZE=${DDOS_WINDOW_SIZE}
-      - ALERT_COOLDOWN=${DDOS_ALERT_COOLDOWN}
-      - METRICS_PORT=${DDOS_METRICS_PORT}
-    volumes:
-      - ./models/final_model:/models:ro    # Mount final_model folder with XGBoost reduced model
-    ports:
-      - "${DDOS_DETECTOR_HOST_PORT}:${DDOS_DETECTOR_CONTAINER_PORT}"                        # Prometheus metrics
-    restart: unless-stopped
-    depends_on:
-      - flow-processor
-    networks:
-      - ids-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${DDOS_DETECTOR_CONTAINER_PORT}"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
 
-  # Response Manager: Quản lý detected IPs với Redis và admin approval
-  response-manager:
-    build: ./infra/ddos-response-manager
-    container_name: ids_response_manager
-    environment:
-      - KAFKA_BROKERS=kafka:${KAFKA_PORT}
-      - KAFKA_ALERT_TOPIC=ddos-alerts
-      - REDIS_HOST=redis
-      - REDIS_PORT=${REDIS_PORT}
-      - API_PORT=${RESPONSE_MANAGER_CONTAINER_PORT}
-      - DEFAULT_BLOCK_DURATION=3600
-    ports:
-      - "${RESPONSE_MANAGER_HOST_PORT}:${RESPONSE_MANAGER_CONTAINER_PORT}"
-    depends_on:
-      - ml-detector
-      - redis
-    networks:
-      - ids-network
-    restart: unless-stopped
 
-  # Response Manager Prometheus Exporter
-  response-manager-exporter:
-    build: ./infra/ddos-response-manager
-    container_name: ids_response_manager_exporter
-    command: ["python", "metrics_exporter.py"]
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=${REDIS_PORT}
-      - METRICS_PORT=${RESPONSE_EXPORTER_PORT}
-    ports:
-      - "${RESPONSE_EXPORTER_PORT}:${RESPONSE_EXPORTER_PORT}"
-    depends_on:
-      - redis
-    networks:
-      - ids-network
-    restart: unless-stopped
 
-  # Redis: Storage cho IP metadata
-  redis:
-    image: redis:7-alpine
-    container_name: ids_redis
-    ports:
-      - "${REDIS_PORT}:${REDIS_PORT}"
-    volumes:
-      - redis_data:/data
-    networks:
-      - ids-network
-    restart: unless-stopped
-    command: redis-server --appendonly yes
 
 volumes:
   network_flows:
@@ -137,8 +61,7 @@ volumes:
     name: pcap_data  
   processed_flows:
     name: processed_flows
-  redis_data:
-    name: redis_data
+
 
 networks:
   ids-network:

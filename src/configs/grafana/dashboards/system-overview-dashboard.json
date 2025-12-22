@@ -1,0 +1,820 @@
+{
+    "title": "🎯 System Overview - Network Security Monitoring",
+    "uid": "system-overview-dashboard",
+    "tags": [
+        "overview",
+        "security",
+        "network",
+        "monitoring"
+    ],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "5s",
+    "time": {
+        "from": "now-15m",
+        "to": "now"
+    },
+    "panels": [
+        {
+            "id": 1,
+            "title": "🌐 Network Traffic (Inbound)",
+            "type": "stat",
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 0,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "expr": "rate(node_network_receive_bytes_total{device=\"ens33\"}[1m]) * 8 / 1000000",
+                    "legendFormat": "Mbps",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value",
+                "textMode": "value_and_name",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "Mbits",
+                    "decimals": 2,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": 0,
+                                "color": "green"
+                            },
+                            {
+                                "value": 100,
+                                "color": "yellow"
+                            },
+                            {
+                                "value": 500,
+                                "color": "red"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 2,
+            "title": "🚨 Total Alerts (Last 5m)",
+            "type": "stat",
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 6,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "expr": "(sum(increase(rule_detector_alerts_total[5m])) or vector(0)) + (sum(increase(ddos_attacks_detected_total[5m])) or vector(0))",
+                    "legendFormat": "Alerts",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value",
+                "textMode": "value_and_name"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "decimals": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": 0,
+                                "color": "green"
+                            },
+                            {
+                                "value": 5,
+                                "color": "yellow"
+                            },
+                            {
+                                "value": 20,
+                                "color": "red"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 3,
+            "title": "💻 CPU Usage",
+            "type": "stat",
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 12,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "expr": "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+                    "legendFormat": "CPU %",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value",
+                "textMode": "value_and_name"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "decimals": 1,
+                    "min": 0,
+                    "max": 100,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": 0,
+                                "color": "green"
+                            },
+                            {
+                                "value": 70,
+                                "color": "yellow"
+                            },
+                            {
+                                "value": 90,
+                                "color": "red"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 4,
+            "title": "💾 Memory Usage",
+            "type": "stat",
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 18,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "expr": "avg((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100)",
+                    "legendFormat": "RAM %",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value",
+                "textMode": "value_and_name"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "decimals": 1,
+                    "min": 0,
+                    "max": 100,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": 0,
+                                "color": "green"
+                            },
+                            {
+                                "value": 70,
+                                "color": "yellow"
+                            },
+                            {
+                                "value": 90,
+                                "color": "red"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 5,
+            "title": "📊 Network Traffic Overview",
+            "type": "graph",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 5
+            },
+            "targets": [
+                {
+                    "expr": "rate(node_network_receive_bytes_total{device=\"ens33\"}[1m]) * 8 / 1000000",
+                    "legendFormat": "Inbound (Mbps)",
+                    "refId": "A"
+                },
+                {
+                    "expr": "rate(node_network_transmit_bytes_total{device=\"ens33\"}[1m]) * 8 / 1000000",
+                    "legendFormat": "Outbound (Mbps)",
+                    "refId": "B"
+                }
+            ],
+            "yaxes": [
+                {
+                    "format": "Mbits",
+                    "label": "Bandwidth"
+                },
+                {
+                    "format": "short"
+                }
+            ],
+            "lines": true,
+            "fill": 2,
+            "linewidth": 2,
+            "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true
+            },
+            "seriesOverrides": [
+                {
+                    "alias": "Outbound (Mbps)",
+                    "transform": "negative-Y"
+                }
+            ]
+        },
+        {
+            "id": 6,
+            "title": "💿 Disk I/O & System Load",
+            "type": "graph",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 5
+            },
+            "targets": [
+                {
+                    "expr": "rate(node_disk_read_bytes_total[1m]) / 1024 / 1024",
+                    "legendFormat": "Disk Read (MB/s)",
+                    "refId": "A"
+                },
+                {
+                    "expr": "rate(node_disk_written_bytes_total[1m]) / 1024 / 1024",
+                    "legendFormat": "Disk Write (MB/s)",
+                    "refId": "B"
+                },
+                {
+                    "expr": "node_load1",
+                    "legendFormat": "Load Average (1m)",
+                    "refId": "C",
+                    "yAxisIndex": 1
+                },
+                {
+                    "expr": "node_load5",
+                    "legendFormat": "Load Average (5m)",
+                    "refId": "D",
+                    "yAxisIndex": 1
+                }
+            ],
+            "yaxes": [
+                {
+                    "format": "MBs",
+                    "label": "Disk I/O",
+                    "min": 0
+                },
+                {
+                    "format": "short",
+                    "label": "Load Average",
+                    "min": 0
+                }
+            ],
+            "lines": true,
+            "fill": 1,
+            "linewidth": 2,
+            "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true
+            }
+        },
+        {
+            "id": 7,
+            "title": "📈 HTTP Requests Rate",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 0,
+                "y": 13
+            },
+            "targets": [
+                {
+                    "expr": "sum(rate(nginx_server_requests{host=~\".*\"}[1m]))",
+                    "legendFormat": "req/s",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value",
+                "textMode": "value_and_name"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps",
+                    "decimals": 2,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": 0,
+                                "color": "green"
+                            },
+                            {
+                                "value": 100,
+                                "color": "yellow"
+                            },
+                            {
+                                "value": 1000,
+                                "color": "red"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 8,
+            "title": "🔍 Flows Processed (Rule Detector)",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 6,
+                "y": 13
+            },
+            "targets": [
+                {
+                    "expr": "rate(rule_detector_flows_processed_total[1m])",
+                    "legendFormat": "flows/s",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value",
+                "textMode": "value_and_name"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ops",
+                    "decimals": 2
+                }
+            }
+        },
+        {
+            "id": 9,
+            "title": "🤖 Flows Processed (ML Detector)",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 12,
+                "y": 13
+            },
+            "targets": [
+                {
+                    "expr": "rate(ddos_flows_processed_total[1m])",
+                    "legendFormat": "flows/s",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value",
+                "textMode": "value_and_name"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ops",
+                    "decimals": 2
+                }
+            }
+        },
+        {
+            "id": 10,
+            "title": "⚡ Active Attackers",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 18,
+                "y": 13
+            },
+            "targets": [
+                {
+                    "expr": "ddos_active_attackers",
+                    "legendFormat": "IPs",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value",
+                "textMode": "value_and_name"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "decimals": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": 0,
+                                "color": "green"
+                            },
+                            {
+                                "value": 5,
+                                "color": "yellow"
+                            },
+                            {
+                                "value": 20,
+                                "color": "red"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 11,
+            "title": "🎯 Top Attack Types (Rule-Based)",
+            "type": "piechart",
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 0,
+                "y": 17
+            },
+            "targets": [
+                {
+                    "expr": "sum by (rule_id) (increase(rule_detector_alerts_total[15m]))",
+                    "legendFormat": "{{rule_id}}",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "right",
+                    "values": [
+                        "value",
+                        "percent"
+                    ]
+                },
+                "pieType": "donut",
+                "displayLabels": [
+                    "name",
+                    "percent"
+                ]
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short"
+                }
+            }
+        },
+        {
+            "id": 12,
+            "title": "🛡️ Alert Severity Distribution",
+            "type": "piechart",
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 8,
+                "y": 17
+            },
+            "targets": [
+                {
+                    "expr": "sum by (severity) (increase(rule_detector_alerts_total[15m]) + increase(ddos_attacks_detected_total[15m]))",
+                    "legendFormat": "{{severity}}",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "right",
+                    "values": [
+                        "value",
+                        "percent"
+                    ]
+                },
+                "pieType": "donut",
+                "displayLabels": [
+                    "name",
+                    "percent"
+                ]
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short"
+                }
+            }
+        },
+        {
+            "id": 13,
+            "title": "📊 Suspicious Flow Types (ML)",
+            "type": "piechart",
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 16,
+                "y": 17
+            },
+            "targets": [
+                {
+                    "expr": "sum(increase(ddos_attacks_detected_total[15m]))",
+                    "legendFormat": "DDoS Attacks",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "right",
+                    "values": [
+                        "value",
+                        "percent"
+                    ]
+                },
+                "pieType": "donut",
+                "displayLabels": [
+                    "name",
+                    "percent"
+                ]
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short"
+                }
+            }
+        },
+        {
+            "id": 14,
+            "title": "🚨 Alert Timeline",
+            "type": "graph",
+            "gridPos": {
+                "h": 8,
+                "w": 24,
+                "x": 0,
+                "y": 25
+            },
+            "targets": [
+                {
+                    "expr": "sum by (severity) (rate(rule_detector_alerts_total[1m]))",
+                    "legendFormat": "Rule-Based: {{severity}}",
+                    "refId": "A"
+                },
+                {
+                    "expr": "sum by (severity) (rate(ddos_attacks_detected_total[1m]))",
+                    "legendFormat": "ML-Based: {{severity}}",
+                    "refId": "B"
+                }
+            ],
+            "yaxes": [
+                {
+                    "format": "ops",
+                    "label": "Alerts/sec"
+                },
+                {
+                    "format": "short"
+                }
+            ],
+            "lines": true,
+            "fill": 1,
+            "linewidth": 2,
+            "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true
+            },
+            "bars": false,
+            "stack": true
+        },
+        {
+            "id": 15,
+            "title": "📡 HTTP Request Rate by Server",
+            "type": "graph",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 33
+            },
+            "targets": [
+                {
+                    "expr": "sum by (host) (rate(nginx_server_requests[1m]))",
+                    "legendFormat": "{{host}}",
+                    "refId": "A"
+                }
+            ],
+            "yaxes": [
+                {
+                    "format": "reqps",
+                    "label": "Requests/sec"
+                },
+                {
+                    "format": "short"
+                }
+            ],
+            "lines": true,
+            "fill": 1,
+            "linewidth": 2,
+            "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true
+            }
+        },
+        {
+            "id": 16,
+            "title": "📦 Packet Rate",
+            "type": "graph",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 33
+            },
+            "targets": [
+                {
+                    "expr": "rate(node_network_receive_packets_total{device=\"ens33\"}[1m])",
+                    "legendFormat": "Receive (pps)",
+                    "refId": "A"
+                },
+                {
+                    "expr": "rate(node_network_transmit_packets_total{device=\"ens33\"}[1m])",
+                    "legendFormat": "Transmit (pps)",
+                    "refId": "B"
+                }
+            ],
+            "yaxes": [
+                {
+                    "format": "pps",
+                    "label": "Packets/sec"
+                },
+                {
+                    "format": "short"
+                }
+            ],
+            "lines": true,
+            "fill": 1,
+            "linewidth": 2,
+            "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true
+            }
+        },
+        {
+            "id": 17,
+            "title": "🔍 Detection Performance",
+            "type": "graph",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 41
+            },
+            "targets": [
+                {
+                    "expr": "histogram_quantile(0.95, rate(rule_detector_processing_seconds_bucket[5m]))",
+                    "legendFormat": "Rule Detector (p95)",
+                    "refId": "A"
+                },
+                {
+                    "expr": "histogram_quantile(0.95, rate(ddos_prediction_seconds_bucket[5m]))",
+                    "legendFormat": "ML Detector (p95)",
+                    "refId": "B"
+                }
+            ],
+            "yaxes": [
+                {
+                    "format": "s",
+                    "label": "Processing Time"
+                },
+                {
+                    "format": "short"
+                }
+            ],
+            "lines": true,
+            "fill": 1,
+            "linewidth": 2,
+            "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true
+            }
+        },
+        {
+            "id": 18,
+            "title": "💡 System Health Indicators",
+            "type": "graph",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 41
+            },
+            "targets": [
+                {
+                    "expr": "rate(node_network_receive_drop_total{device=\"ens33\"}[1m])",
+                    "legendFormat": "Network Drops (RX)",
+                    "refId": "A"
+                },
+                {
+                    "expr": "rate(node_network_receive_errs_total{device=\"ens33\"}[1m])",
+                    "legendFormat": "Network Errors (RX)",
+                    "refId": "B"
+                }
+            ],
+            "yaxes": [
+                {
+                    "format": "short",
+                    "label": "Errors/Drops per sec"
+                },
+                {
+                    "format": "short"
+                }
+            ],
+            "lines": true,
+            "fill": 1,
+            "linewidth": 2,
+            "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true
+            }
+        }
+    ],
+    "templating": {
+        "list": [
+            {
+                "name": "datasource",
+                "type": "datasource",
+                "query": "prometheus",
+                "current": {
+                    "text": "Prometheus",
+                    "value": "Prometheus"
+                }
+            }
+        ]
+    },
+    "annotations": {
+        "list": [
+            {
+                "datasource": "Prometheus",
+                "enable": true,
+                "expr": "sum(increase(rule_detector_alerts_total{severity=\"critical\"}[1m])) > 0",
+                "name": "Critical Alerts",
+                "titleFormat": "🚨 Critical Alert",
+                "textFormat": "Critical security alert detected",
+                "iconColor": "red"
+            },
+            {
+                "datasource": "Prometheus",
+                "enable": true,
+                "expr": "rate(node_network_receive_bytes_total{device=\"ens33\"}[1m]) * 8 / 1000000 > 500",
+                "name": "High Network Traffic",
+                "titleFormat": "⚠️ High Traffic",
+                "textFormat": "Network traffic exceeds 500 Mbps",
+                "iconColor": "orange"
+            }
+        ]
+    }
+}

@@ -1,0 +1,44 @@
+thresholds:
+  critical:
+    min_flows: 100
+    min_suspicious_ratio: 0.8
+  high:
+    min_flows: 50
+    min_suspicious_ratio: 0.6
+  medium:
+    min_flows: 20
+    min_suspicious_ratio: 0.4
+  low:
+    min_flows: 10
+    min_suspicious_ratio: 0.2
+
+recommendations:
+  critical: "Immediate blocking required. High confidence attack."
+  high: "Investigate and block if confirmed."
+  medium: "Monitor closely. Potential attack."
+  low: "Low priority warning."
+
+alert:
+  cooldown: 300
+  min_flows_for_analysis: 50
+  top_attackers_count: 5
+
+ip_filtering:
+  whitelist: []
+  blacklist: []
+
+performance:
+  analysis_interval: 1000
+  max_alert_history: 100
+
+time_windows:
+  short:
+    size: 30
+    enabled: true
+    description: "Short window (30s)"
+    primary: true
+  medium:
+    size: 60
+    enabled: true
+    description: "Medium window (60s)"
+    primary: false

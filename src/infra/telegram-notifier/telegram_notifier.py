@@ -207,9 +207,11 @@ class TelegramNotifier:
         msg += f"<b>Time:</b> {timestamp}\n"
         
         # Attack type - handle both formats
+        rule_name = None
         if 'rule_name' in alert:
             # Rule-based detector format
-            msg += f"<b>Type:</b> {alert.get('rule_name', 'Unknown')}\n"
+            rule_name = alert.get('rule_name', 'Unknown')
+            msg += f"<b>Type:</b> {rule_name}\n"
             msg += f"<b>Rule:</b> {alert.get('rule_id', 'N/A')}\n"
             msg += f"<b>Description:</b> {alert.get('description', 'N/A')}\n"
         else:
@@ -223,10 +225,85 @@ class TelegramNotifier:
         if isinstance(confidence, (int, float)):
             msg += f"<b>Confidence:</b> {confidence:.1%}\n"
         
+        # Window Stats - thêm thông tin quan trọng theo loại tấn công
+        window_stats = alert.get('window_stats', {})
+        if window_stats:
+            msg += f"\n<b>📊 Attack Statistics:</b>\n"
+            
+            # Luôn hiển thị total flows
+            total_flows = window_stats.get('total_flows', 0)
+            msg += f"  • Total Flows: <b>{total_flows:,}</b>\n"
+            
+            # Hiển thị metrics đặc trưng theo loại tấn công
+            if rule_name:
+                if 'SYN Flood' in rule_name or 'SYN' in rule_name.upper():
+                    # SYN Flood Attack - focus on SYN/ACK metrics
+                    syn_count = window_stats.get('syn_flag_count', 0)
+                    ack_count = window_stats.get('ack_flag_count', 0)
+                    syn_ack_ratio = window_stats.get('syn_ack_ratio', 0)
+                    tcp_packets = window_stats.get('tcp_packet_count', 0)
+                    
+                    msg += f"  • SYN Packets: <b>{int(syn_count):,}</b>\n"
+                    msg += f"  • ACK Packets: <b>{int(ack_count):,}</b>\n"
+                    msg += f"  • SYN/ACK Ratio: <b>{syn_ack_ratio:.2%}</b>\n"
+                    msg += f"  • TCP Packets: <b>{int(tcp_packets):,}</b>\n"
+                
+                elif 'UDP Flood' in rule_name or 'UDP' in rule_name.upper():
+                    # UDP Flood Attack - focus on UDP metrics
+                    udp_packets = window_stats.get('udp_packet_count', 0)
+                    unique_dst_ports = window_stats.get('unique_dst_ports', 0)
+                    packets_per_ip = window_stats.get('packets_per_ip', 0)
+                    
+                    msg += f"  • UDP Packets: <b>{int(udp_packets):,}</b>\n"
+                    msg += f"  • Unique Dst Ports: <b>{unique_dst_ports}</b>\n"
+                    msg += f"  • Packets/IP: <b>{packets_per_ip:.1f}</b>\n"
+                
+                elif 'ICMP Flood' in rule_name or 'ICMP' in rule_name.upper():
+                    # ICMP Flood Attack - focus on ICMP metrics
+                    icmp_packets = window_stats.get('icmp_packet_count', 0)
+                    packets_per_ip = window_stats.get('packets_per_ip', 0)
+                    
+                    msg += f"  • ICMP Packets: <b>{int(icmp_packets):,}</b>\n"
+                    msg += f"  • Packets/IP: <b>{packets_per_ip:.1f}</b>\n"
+                
+                elif 'Port Scan' in rule_name or 'SCAN' in rule_name.upper():
+                    # Port Scan - focus on port diversity
+                    unique_dst_ports = window_stats.get('unique_dst_ports', 0)
+                    unique_dst_ports_per_ip = window_stats.get('unique_dst_ports_per_ip', 0)
+                    unique_src_ips = window_stats.get('unique_src_ips', 0)
+                    
+                    msg += f"  • Unique Dst Ports: <b>{unique_dst_ports}</b>\n"
+                    msg += f"  • Ports/IP: <b>{unique_dst_ports_per_ip:.1f}</b>\n"
+                    msg += f"  • Unique Src IPs: <b>{unique_src_ips}</b>\n"
+                
+                elif 'Slowloris' in rule_name or 'SLOW' in rule_name.upper():
+                    # Slowloris - focus on connection metrics
+                    tcp_packets = window_stats.get('tcp_packet_count', 0)
+                    packets_per_ip = window_stats.get('packets_per_ip', 0)
+                    flows_per_ip = window_stats.get('flows_per_ip', 0)
+                    
+                    msg += f"  • TCP Packets: <b>{int(tcp_packets):,}</b>\n"
+                    msg += f"  • Flows/IP: <b>{flows_per_ip:.1f}</b>\n"
+                    msg += f"  • Packets/IP: <b>{packets_per_ip:.1f}</b>\n"
+                
+                else:
+                    # Generic attack - show general metrics
+                    unique_src_ips = window_stats.get('unique_src_ips', 0)
+                    unique_dst_ports = window_stats.get('unique_dst_ports', 0)
+                    
+                    msg += f"  • Unique Src IPs: <b>{unique_src_ips}</b>\n"
+                    if unique_dst_ports:
+                        msg += f"  • Unique Dst Ports: <b>{unique_dst_ports}</b>\n"
+            else:
+                # ML detector - show general stats
+                unique_src_ips = window_stats.get('unique_src_ips', 0)
+                if unique_src_ips:
+                    msg += f"  • Unique Src IPs: <b>{unique_src_ips}</b>\n"
+        
         # Attacker IPs
         ips = alert.get('attacker_ips', [])
         if ips:
-            msg += f"\n<b>Attackers ({len(ips)}):</b>\n"
+            msg += f"\n<b>🎯 Attackers ({len(ips)}):</b>\n"
             for ip in ips[:5]:
                 msg += f"  • <code>{ip}</code>\n"
             if len(ips) > 5:
@@ -235,7 +312,16 @@ class TelegramNotifier:
         # Action (for rule-based)
         action = alert.get('action')
         if action:
-            msg += f"\n<b>Action:</b> {action}\n"
+            msg += f"\n<b>⚡ Action:</b> {action}\n"
+        
+        # Matched conditions (for rule-based)
+        matched_conditions = alert.get('matched_conditions', [])
+        if matched_conditions:
+            msg += f"\n<b>✓ Matched Conditions:</b>\n"
+            for cond in matched_conditions[:3]:
+                msg += f"  • {cond}\n"
+            if len(matched_conditions) > 3:
+                msg += f"  ... +{len(matched_conditions)-3} more\n"
         
         msg += f"\n<i>ID: {alert.get('alert_id', 'N/A')}</i>"
         return msg

@@ -1,0 +1,511 @@
+{
+    "title": "Network Traffic Monitoring",
+    "uid": "network-traffic-monitoring",
+    "tags": [
+        "network",
+        "traffic",
+        "monitoring",
+        "system"
+    ],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "5s",
+    "time": {
+        "from": "now-15m",
+        "to": "now"
+    },
+    "panels": [
+        {
+            "id": 1,
+            "title": "📊 Network Receive Rate (ens33)",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 0,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "expr": "rate(node_network_receive_bytes_total{device=\"ens33\"}[1m]) * 8 / 1000000",
+                    "legendFormat": "Mbps",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value",
+                "textMode": "value_and_name"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "Mbits",
+                    "decimals": 2,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": 0,
+                                "color": "green"
+                            },
+                            {
+                                "value": 100,
+                                "color": "yellow"
+                            },
+                            {
+                                "value": 500,
+                                "color": "red"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 2,
+            "title": "📤 Network Transmit Rate (ens33)",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 6,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "expr": "rate(node_network_transmit_bytes_total{device=\"ens33\"}[1m]) * 8 / 1000000",
+                    "legendFormat": "Mbps",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "Mbits",
+                    "decimals": 2,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "value": 0,
+                                "color": "green"
+                            },
+                            {
+                                "value": 100,
+                                "color": "yellow"
+                            },
+                            {
+                                "value": 500,
+                                "color": "red"
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "id": 3,
+            "title": "📦 Packets Received/sec",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 12,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "expr": "rate(node_network_receive_packets_total{device=\"ens33\"}[1m])",
+                    "legendFormat": "pps",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "pps",
+                    "decimals": 0
+                }
+            }
+        },
+        {
+            "id": 4,
+            "title": "📦 Packets Transmitted/sec",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 18,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "expr": "rate(node_network_transmit_packets_total{device=\"ens33\"}[1m])",
+                    "legendFormat": "pps",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "graphMode": "area",
+                "colorMode": "value"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "pps",
+                    "decimals": 0
+                }
+            }
+        },
+        {
+            "id": 5,
+            "title": "📈 Network Bandwidth Usage (ens33)",
+            "type": "graph",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 4
+            },
+            "targets": [
+                {
+                    "expr": "rate(node_network_receive_bytes_total{device=\"ens33\"}[1m]) * 8 / 1000000",
+                    "legendFormat": "Receive (Mbps)",
+                    "refId": "A"
+                },
+                {
+                    "expr": "rate(node_network_transmit_bytes_total{device=\"ens33\"}[1m]) * 8 / 1000000",
+                    "legendFormat": "Transmit (Mbps)",
+                    "refId": "B"
+                }
+            ],
+            "yaxes": [
+                {
+                    "format": "Mbits",
+                    "label": "Bandwidth"
+                },
+                {
+                    "format": "short"
+                }
+            ],
+            "lines": true,
+            "fill": 1,
+            "linewidth": 2,
+            "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true
+            },
+            "seriesOverrides": [
+                {
+                    "alias": "Transmit (Mbps)",
+                    "transform": "negative-Y"
+                }
+            ]
+        },
+        {
+            "id": 6,
+            "title": "📦 Packet Rate (ens33)",
+            "type": "graph",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 4
+            },
+            "targets": [
+                {
+                    "expr": "rate(node_network_receive_packets_total{device=\"ens33\"}[1m])",
+                    "legendFormat": "Receive (pps)",
+                    "refId": "A"
+                },
+                {
+                    "expr": "rate(node_network_transmit_packets_total{device=\"ens33\"}[1m])",
+                    "legendFormat": "Transmit (pps)",
+                    "refId": "B"
+                }
+            ],
+            "yaxes": [
+                {
+                    "format": "pps",
+                    "label": "Packets/sec"
+                },
+                {
+                    "format": "short"
+                }
+            ],
+            "lines": true,
+            "fill": 1,
+            "linewidth": 2,
+            "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true,
+                "max": true
+            }
+        },
+        {
+            "id": 7,
+            "title": "⚠️ Network Errors (ens33)",
+            "type": "graph",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 12
+            },
+            "targets": [
+                {
+                    "expr": "rate(node_network_receive_errs_total{device=\"ens33\"}[1m])",
+                    "legendFormat": "Receive Errors",
+                    "refId": "A"
+                },
+                {
+                    "expr": "rate(node_network_transmit_errs_total{device=\"ens33\"}[1m])",
+                    "legendFormat": "Transmit Errors",
+                    "refId": "B"
+                },
+                {
+                    "expr": "rate(node_network_receive_drop_total{device=\"ens33\"}[1m])",
+                    "legendFormat": "Receive Drops",
+                    "refId": "C"
+                },
+                {
+                    "expr": "rate(node_network_transmit_drop_total{device=\"ens33\"}[1m])",
+                    "legendFormat": "Transmit Drops",
+                    "refId": "D"
+                }
+            ],
+            "yaxes": [
+                {
+                    "format": "short",
+                    "label": "Errors/sec"
+                },
+                {
+                    "format": "short"
+                }
+            ],
+            "lines": true,
+            "fill": 1,
+            "linewidth": 2,
+            "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": true,
+                "current": true
+            },
+            "seriesOverrides": [
+                {
+                    "alias": "/.*Error.*/",
+                    "color": "#F2495C"
+                },
+                {
+                    "alias": "/.*Drop.*/",
+                    "color": "#FF9830"
+                }
+            ]
+        },
+        {
+            "id": 8,
+            "title": "🔄 Network Interface Status",
+            "type": "table",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 12
+            },
+            "targets": [
+                {
+                    "expr": "node_network_up",
+                    "format": "table",
+                    "instant": true,
+                    "refId": "A"
+                }
+            ],
+            "transformations": [
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {
+                            "Time": true,
+                            "__name__": true,
+                            "instance": true,
+                            "job": true
+                        },
+                        "renameByName": {
+                            "device": "Interface",
+                            "Value": "Status (1=Up, 0=Down)"
+                        }
+                    }
+                }
+            ],
+            "options": {
+                "showHeader": true
+            }
+        },
+        {
+            "id": 9,
+            "title": "💾 Total Bytes Received (ens33)",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 8,
+                "x": 0,
+                "y": 20
+            },
+            "targets": [
+                {
+                    "expr": "node_network_receive_bytes_total{device=\"ens33\"}",
+                    "legendFormat": "Total RX",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "graphMode": "none",
+                "colorMode": "value",
+                "textMode": "value_and_name"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "bytes",
+                    "decimals": 2
+                }
+            }
+        },
+        {
+            "id": 10,
+            "title": "💾 Total Bytes Transmitted (ens33)",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 8,
+                "x": 8,
+                "y": 20
+            },
+            "targets": [
+                {
+                    "expr": "node_network_transmit_bytes_total{device=\"ens33\"}",
+                    "legendFormat": "Total TX",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "graphMode": "none",
+                "colorMode": "value",
+                "textMode": "value_and_name"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "bytes",
+                    "decimals": 2
+                }
+            }
+        },
+        {
+            "id": 11,
+            "title": "📊 Total Packets (ens33)",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 8,
+                "x": 16,
+                "y": 20
+            },
+            "targets": [
+                {
+                    "expr": "node_network_receive_packets_total{device=\"ens33\"} + node_network_transmit_packets_total{device=\"ens33\"}",
+                    "legendFormat": "Total Packets",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "graphMode": "none",
+                "colorMode": "value",
+                "textMode": "value_and_name"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "decimals": 0
+                }
+            }
+        },
+        {
+            "id": 12,
+            "title": "🌐 All Network Interfaces Bandwidth",
+            "type": "graph",
+            "gridPos": {
+                "h": 8,
+                "w": 24,
+                "x": 0,
+                "y": 24
+            },
+            "targets": [
+                {
+                    "expr": "rate(node_network_receive_bytes_total[1m]) * 8 / 1000000",
+                    "legendFormat": "{{device}} RX",
+                    "refId": "A"
+                },
+                {
+                    "expr": "rate(node_network_transmit_bytes_total[1m]) * 8 / 1000000",
+                    "legendFormat": "{{device}} TX",
+                    "refId": "B"
+                }
+            ],
+            "yaxes": [
+                {
+                    "format": "Mbits",
+                    "label": "Bandwidth"
+                },
+                {
+                    "format": "short"
+                }
+            ],
+            "lines": true,
+            "fill": 0,
+            "linewidth": 1,
+            "legend": {
+                "show": true,
+                "alignAsTable": true,
+                "avg": false,
+                "current": true,
+                "max": true
+            }
+        }
+    ],
+    "templating": {
+        "list": [
+            {
+                "name": "datasource",
+                "type": "datasource",
+                "query": "prometheus",
+                "current": {
+                    "text": "Prometheus",
+                    "value": "Prometheus"
+                }
+            }
+        ]
+    },
+    "annotations": {
+        "list": [
+            {
+                "datasource": "Prometheus",
+                "enable": true,
+                "expr": "rate(node_network_receive_bytes_total{device=\"ens33\"}[1m]) * 8 / 1000000 > 100",
+                "name": "High Bandwidth Usage",
+                "titleFormat": "High Network Traffic",
+                "textFormat": "Bandwidth exceeds 100 Mbps"
+            }
+        ]
+    }
+}

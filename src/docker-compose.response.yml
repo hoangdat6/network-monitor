@@ -1,0 +1,77 @@
+version: "3.8"
+
+services:
+  # Response Manager: Quản lý detected IPs với Redis và admin approval
+  response-manager:
+    build: ./infra/ddos-response-manager
+    container_name: ids_response_manager
+    environment:
+      - KAFKA_BROKERS=kafka:${KAFKA_PORT}
+      - KAFKA_ALERT_TOPIC=ddos-alerts
+      - REDIS_HOST=redis
+      - REDIS_PORT=${REDIS_PORT}
+      - API_PORT=${RESPONSE_MANAGER_CONTAINER_PORT}
+      - DEFAULT_BLOCK_DURATION=3600
+    ports:
+      - "${RESPONSE_MANAGER_HOST_PORT}:${RESPONSE_MANAGER_CONTAINER_PORT}"
+    depends_on:
+      - redis
+    networks:
+      - ids-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${RESPONSE_MANAGER_CONTAINER_PORT}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Response Manager Prometheus Exporter
+  response-manager-exporter:
+    build: ./infra/ddos-response-manager
+    container_name: ids_response_manager_exporter
+    command: ["python", "metrics_exporter.py"]
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=${REDIS_PORT}
+      - METRICS_PORT=${RESPONSE_EXPORTER_PORT}
+    ports:
+      - "${RESPONSE_EXPORTER_PORT}:${RESPONSE_EXPORTER_PORT}"
+    depends_on:
+      - redis
+    networks:
+      - ids-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${RESPONSE_EXPORTER_PORT}/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis: Storage cho IP metadata
+  redis:
+    image: redis:7-alpine
+    container_name: ids_redis
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ids-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  redis_data:
+    name: redis_data
+
+networks:
+  ids-network:
+    external: true

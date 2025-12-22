@@ -23,24 +23,8 @@ per_flow_rules:
       - field: "flow_duration"
         operator: "lt"
         value: 1000000  # < 1 second
-    action: "alert"  # Alert only, don't block
-    
-  - id: "PF-002"
-    name: "ICMP High Rate Pattern"
-    enabled: true
-    severity: "medium"
-    description: "ICMP flow with high packet rate"
-    conditions:
-      - field: "protocol"
-        operator: "eq"
-        value: 1  # ICMP
-      - field: "flow_pkts_s"
-        operator: "gt"
-        value: 100  # > 100 packets/second
-      - field: "flow_duration"
-        operator: "lt"
-        value: 5000000  # < 5 seconds
-    action: "alert"
+    action: "alert" 
+
 
 # ==============================================================================
 # AGGREGATION RULES
@@ -80,36 +64,9 @@ aggregation_rules:
         value: 10000
     action: "alert_and_block"
     
-  - id: "AGG-003"
-    name: "ICMP Flood Attack"
-    enabled: true
-    severity: "critical"
-    description: "Sustained ICMP flood attack"
-    window: "30s"
-    conditions:
-      - metric: "icmp_packet_count"
-        operator: "gt"
-        value: 5000
-    action: "alert_and_block"
-  
   # ============================================================================
   # HIGH SEVERITY - Suspicious behavior, alert for investigation
   # ============================================================================
-  
-  - id: "AGG-004"
-    name: "SSH Brute Force Attack"
-    enabled: true
-    severity: "high"
-    description: "Multiple short SSH connections from single IP"
-    window: "60s"
-    conditions:
-      - metric: "flows_per_ip"
-        operator: "gt"
-        value: 20  # > 20 SSH flows from 1 IP in 60s
-      - metric: "packets_per_ip"
-        operator: "lt"
-        value: 500  # Low packets per flow (quick attempts)
-    action: "alert"  # Alert only, let SOC decide
     
   - id: "AGG-005"
     name: "High Volume from Single IP"
@@ -180,27 +137,16 @@ aggregation_rules:
       - metric: "flows_per_ip"
         operator: "lt"
         value: 10  # Each source sends few flows
+      - metric: "total_packets"
+        operator: "gt"
+        value: 20000
     action: "alert"
     
-  - id: "AGG-009"
-    name: "DNS/NTP Amplification Attack"
-    enabled: true
-    severity: "critical"
-    description: "Response much larger than request - amplification"
-    window: "30s"
-    conditions:
-      - metric: "udp_packet_count"
-        operator: "gt"
-        value: 5000
-      # Note: Need to add bwd/fwd ratio metric in window_manager
-    action: "alert"
-
 # ==============================================================================
 # CONFIGURATION
 # ==============================================================================
 
 config:
-  # Time windows for aggregation
   windows:
     short:
       size: 30  # seconds

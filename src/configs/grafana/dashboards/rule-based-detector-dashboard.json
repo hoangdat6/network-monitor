@@ -1,623 +1,432 @@
 {
-    "dashboard": {
-        "title": "Rule-Based DDoS Detector",
-        "tags": [
-            "ddos",
-            "security",
-            "rule-based",
-            "detection"
-        ],
-        "timezone": "browser",
-        "schemaVersion": 16,
-        "version": 1,
-        "refresh": "5s",
-        "time": {
-            "from": "now-15m",
-            "to": "now"
-        },
-        "panels": [
-            {
-                "id": 1,
-                "title": "🚨 Active Alerts",
-                "type": "stat",
-                "gridPos": {
-                    "h": 4,
-                    "w": 6,
-                    "x": 0,
-                    "y": 0
-                },
-                "targets": [
-                    {
-                        "expr": "rate(rule_detector_alerts_total[1m]) * 60",
-                        "legendFormat": "Alerts/min",
-                        "refId": "A"
-                    }
-                ],
-                "options": {
-                    "graphMode": "area",
-                    "colorMode": "background",
-                    "textMode": "value_and_name"
-                },
-                "fieldConfig": {
-                    "defaults": {
-                        "thresholds": {
-                            "mode": "absolute",
-                            "steps": [
-                                {
-                                    "value": 0,
-                                    "color": "green"
-                                },
-                                {
-                                    "value": 1,
-                                    "color": "yellow"
-                                },
-                                {
-                                    "value": 5,
-                                    "color": "red"
-                                }
-                            ]
-                        },
-                        "unit": "short"
-                    }
-                }
-            },
-            {
-                "id": 2,
-                "title": "📊 Flows Processed",
-                "type": "stat",
-                "gridPos": {
-                    "h": 4,
-                    "w": 6,
-                    "x": 6,
-                    "y": 0
-                },
-                "targets": [
-                    {
-                        "expr": "rate(rule_detector_flows_processed_total[1m]) * 60",
-                        "legendFormat": "Flows/min",
-                        "refId": "A"
-                    }
-                ],
-                "options": {
-                    "graphMode": "area",
-                    "colorMode": "value"
-                },
-                "fieldConfig": {
-                    "defaults": {
-                        "unit": "short",
-                        "decimals": 0
-                    }
-                }
-            },
-            {
-                "id": 3,
-                "title": "✅ Rule Match Rate",
-                "type": "stat",
-                "gridPos": {
-                    "h": 4,
-                    "w": 6,
-                    "x": 12,
-                    "y": 0
-                },
-                "targets": [
-                    {
-                        "expr": "(rate(rule_detector_flows_matched_total[5m]) / rate(rule_detector_flows_processed_total[5m])) * 100",
-                        "legendFormat": "Match %",
-                        "refId": "A"
-                    }
-                ],
-                "options": {
-                    "graphMode": "area",
-                    "colorMode": "background"
-                },
-                "fieldConfig": {
-                    "defaults": {
-                        "thresholds": {
-                            "mode": "absolute",
-                            "steps": [
-                                {
-                                    "value": 0,
-                                    "color": "green"
-                                },
-                                {
-                                    "value": 10,
-                                    "color": "yellow"
-                                },
-                                {
-                                    "value": 50,
-                                    "color": "red"
-                                }
-                            ]
-                        },
-                        "unit": "percent",
-                        "decimals": 1
-                    }
-                }
-            },
-            {
-                "id": 4,
-                "title": "⚡ Processing Speed",
-                "type": "stat",
-                "gridPos": {
-                    "h": 4,
-                    "w": 6,
-                    "x": 18,
-                    "y": 0
-                },
-                "targets": [
-                    {
-                        "expr": "rate(rule_detector_processing_seconds_sum[1m]) / rate(rule_detector_processing_seconds_count[1m]) * 1000",
-                        "legendFormat": "Avg ms/flow",
-                        "refId": "A"
-                    }
-                ],
-                "options": {
-                    "graphMode": "area",
-                    "colorMode": "value"
-                },
-                "fieldConfig": {
-                    "defaults": {
-                        "unit": "ms",
-                        "decimals": 2
-                    }
-                }
-            },
-            {
-                "id": 5,
-                "title": "📈 Flow Processing Rate",
-                "type": "graph",
-                "gridPos": {
-                    "h": 8,
-                    "w": 12,
-                    "x": 0,
-                    "y": 4
-                },
-                "targets": [
-                    {
-                        "expr": "rate(rule_detector_flows_processed_total[1m]) * 60",
-                        "legendFormat": "Total Flows/min",
-                        "refId": "A"
-                    },
-                    {
-                        "expr": "rate(rule_detector_flows_matched_total[1m]) * 60",
-                        "legendFormat": "Matched Flows/min",
-                        "refId": "B"
-                    },
-                    {
-                        "expr": "rate(rule_detector_flows_to_ml_total[1m]) * 60",
-                        "legendFormat": "To ML/min",
-                        "refId": "C"
-                    }
-                ],
-                "yaxes": [
-                    {
-                        "format": "short",
-                        "label": "Flows/min"
-                    },
-                    {
-                        "format": "short"
-                    }
-                ],
-                "lines": true,
-                "fill": 1,
-                "linewidth": 2,
-                "legend": {
-                    "show": true,
-                    "alignAsTable": true,
-                    "avg": true,
-                    "current": true,
-                    "max": true
-                }
-            },
-            {
-                "id": 6,
-                "title": "🎯 Alerts by Severity",
-                "type": "graph",
-                "gridPos": {
-                    "h": 8,
-                    "w": 12,
-                    "x": 12,
-                    "y": 4
-                },
-                "targets": [
-                    {
-                        "expr": "rate(rule_detector_alerts_total{severity=\"critical\"}[1m]) * 60",
-                        "legendFormat": "Critical",
-                        "refId": "A"
-                    },
-                    {
-                        "expr": "rate(rule_detector_alerts_total{severity=\"high\"}[1m]) * 60",
-                        "legendFormat": "High",
-                        "refId": "B"
-                    },
-                    {
-                        "expr": "rate(rule_detector_alerts_total{severity=\"medium\"}[1m]) * 60",
-                        "legendFormat": "Medium",
-                        "refId": "C"
-                    }
-                ],
-                "yaxes": [
-                    {
-                        "format": "short",
-                        "label": "Alerts/min"
-                    },
-                    {
-                        "format": "short"
-                    }
-                ],
-                "lines": true,
-                "fill": 2,
-                "linewidth": 2,
-                "legend": {
-                    "show": true,
-                    "alignAsTable": true,
-                    "current": true
-                },
-                "seriesOverrides": [
-                    {
-                        "alias": "Critical",
-                        "color": "#F2495C"
-                    },
-                    {
-                        "alias": "High",
-                        "color": "#FF9830"
-                    },
-                    {
-                        "alias": "Medium",
-                        "color": "#FADE2A"
-                    }
-                ]
-            },
-            {
-                "id": 7,
-                "title": "🪟 Window Statistics - Short (30s)",
-                "type": "stat",
-                "gridPos": {
-                    "h": 4,
-                    "w": 12,
-                    "x": 0,
-                    "y": 12
-                },
-                "targets": [
-                    {
-                        "expr": "rule_detector_window_flows{window=\"short\"}",
-                        "legendFormat": "Flows in Window",
-                        "refId": "A"
-                    }
-                ],
-                "options": {
-                    "graphMode": "area",
-                    "colorMode": "value",
-                    "textMode": "value_and_name"
-                },
-                "fieldConfig": {
-                    "defaults": {
-                        "unit": "short",
-                        "decimals": 0
-                    }
-                }
-            },
-            {
-                "id": 8,
-                "title": "🪟 Window Statistics - Medium (60s)",
-                "type": "stat",
-                "gridPos": {
-                    "h": 4,
-                    "w": 12,
-                    "x": 12,
-                    "y": 12
-                },
-                "targets": [
-                    {
-                        "expr": "rule_detector_window_flows{window=\"medium\"}",
-                        "legendFormat": "Flows in Window",
-                        "refId": "A"
-                    }
-                ],
-                "options": {
-                    "graphMode": "area",
-                    "colorMode": "value",
-                    "textMode": "value_and_name"
-                },
-                "fieldConfig": {
-                    "defaults": {
-                        "unit": "short",
-                        "decimals": 0
-                    }
-                }
-            },
-            {
-                "id": 9,
-                "title": "🔥 Alerts by Rule ID",
-                "type": "bargauge",
-                "gridPos": {
-                    "h": 8,
-                    "w": 12,
-                    "x": 0,
-                    "y": 16
-                },
-                "targets": [
-                    {
-                        "expr": "sum by (rule_id) (increase(rule_detector_alerts_total[5m]))",
-                        "legendFormat": "{{rule_id}}",
-                        "refId": "A"
-                    }
-                ],
-                "options": {
-                    "orientation": "horizontal",
-                    "displayMode": "gradient",
-                    "showUnfilled": true
-                },
-                "fieldConfig": {
-                    "defaults": {
-                        "thresholds": {
-                            "mode": "absolute",
-                            "steps": [
-                                {
-                                    "value": 0,
-                                    "color": "green"
-                                },
-                                {
-                                    "value": 5,
-                                    "color": "yellow"
-                                },
-                                {
-                                    "value": 10,
-                                    "color": "red"
-                                }
-                            ]
-                        },
-                        "unit": "short"
-                    }
-                }
-            },
-            {
-                "id": 10,
-                "title": "⏱️ Processing Time Distribution",
-                "type": "graph",
-                "gridPos": {
-                    "h": 8,
-                    "w": 12,
-                    "x": 12,
-                    "y": 16
-                },
-                "targets": [
-                    {
-                        "expr": "histogram_quantile(0.50, rate(rule_detector_processing_seconds_bucket[5m]))",
-                        "legendFormat": "p50 (median)",
-                        "refId": "A"
-                    },
-                    {
-                        "expr": "histogram_quantile(0.95, rate(rule_detector_processing_seconds_bucket[5m]))",
-                        "legendFormat": "p95",
-                        "refId": "B"
-                    },
-                    {
-                        "expr": "histogram_quantile(0.99, rate(rule_detector_processing_seconds_bucket[5m]))",
-                        "legendFormat": "p99",
-                        "refId": "C"
-                    }
-                ],
-                "yaxes": [
-                    {
-                        "format": "s",
-                        "label": "Processing Time"
-                    },
-                    {
-                        "format": "short"
-                    }
-                ],
-                "lines": true,
-                "fill": 0,
-                "linewidth": 2,
-                "legend": {
-                    "show": true,
-                    "alignAsTable": true,
-                    "avg": true,
-                    "current": true
-                }
-            },
-            {
-                "id": 11,
-                "title": "📋 Recent Alerts Log",
-                "type": "logs",
-                "gridPos": {
-                    "h": 8,
-                    "w": 24,
-                    "x": 0,
-                    "y": 24
-                },
-                "targets": [
-                    {
-                        "expr": "{job=\"rule-based-detector\"} |= \"ALERT\"",
-                        "refId": "A"
-                    }
-                ],
-                "options": {
-                    "showTime": true,
-                    "showLabels": false,
-                    "wrapLogMessage": true
-                }
-            },
-            {
-                "id": 12,
-                "title": "🎲 Flow Distribution",
-                "type": "piechart",
-                "gridPos": {
-                    "h": 8,
-                    "w": 8,
-                    "x": 0,
-                    "y": 32
-                },
-                "targets": [
-                    {
-                        "expr": "increase(rule_detector_flows_matched_total[5m])",
-                        "legendFormat": "Matched (Rules)",
-                        "refId": "A"
-                    },
-                    {
-                        "expr": "increase(rule_detector_flows_to_ml_total[5m])",
-                        "legendFormat": "Sent to ML",
-                        "refId": "B"
-                    }
-                ],
-                "options": {
-                    "legend": {
-                        "displayMode": "table",
-                        "placement": "right",
-                        "values": [
-                            "value",
-                            "percent"
-                        ]
-                    },
-                    "pieType": "donut"
-                }
-            },
-            {
-                "id": 13,
-                "title": "📊 Cumulative Flows",
-                "type": "stat",
-                "gridPos": {
-                    "h": 4,
-                    "w": 8,
-                    "x": 8,
-                    "y": 32
-                },
-                "targets": [
-                    {
-                        "expr": "rule_detector_flows_processed_total",
-                        "legendFormat": "Total Processed",
-                        "refId": "A"
-                    }
-                ],
-                "options": {
-                    "graphMode": "none",
-                    "colorMode": "value",
-                    "textMode": "value_and_name"
-                },
-                "fieldConfig": {
-                    "defaults": {
-                        "unit": "short",
-                        "decimals": 0
-                    }
-                }
-            },
-            {
-                "id": 14,
-                "title": "🚨 Cumulative Alerts",
-                "type": "stat",
-                "gridPos": {
-                    "h": 4,
-                    "w": 8,
-                    "x": 8,
-                    "y": 36
-                },
-                "targets": [
-                    {
-                        "expr": "sum(rule_detector_alerts_total)",
-                        "legendFormat": "Total Alerts",
-                        "refId": "A"
-                    }
-                ],
-                "options": {
-                    "graphMode": "none",
-                    "colorMode": "background",
-                    "textMode": "value_and_name"
-                },
-                "fieldConfig": {
-                    "defaults": {
-                        "thresholds": {
-                            "mode": "absolute",
-                            "steps": [
-                                {
-                                    "value": 0,
-                                    "color": "green"
-                                },
-                                {
-                                    "value": 1,
-                                    "color": "yellow"
-                                },
-                                {
-                                    "value": 10,
-                                    "color": "red"
-                                }
-                            ]
-                        },
-                        "unit": "short",
-                        "decimals": 0
-                    }
-                }
-            },
-            {
-                "id": 15,
-                "title": "💡 System Status",
-                "type": "table",
-                "gridPos": {
-                    "h": 8,
-                    "w": 8,
-                    "x": 16,
-                    "y": 32
-                },
-                "targets": [
-                    {
-                        "expr": "up{job=\"rule-based-detector\"}",
-                        "legendFormat": "Detector Status",
-                        "refId": "A",
-                        "format": "table",
-                        "instant": true
-                    },
-                    {
-                        "expr": "rate(rule_detector_flows_processed_total[1m]) * 60",
-                        "legendFormat": "Flows/min",
-                        "refId": "B",
-                        "format": "table",
-                        "instant": true
-                    },
-                    {
-                        "expr": "rule_detector_window_flows{window=\"medium\"}",
-                        "legendFormat": "Window Size",
-                        "refId": "C",
-                        "format": "table",
-                        "instant": true
-                    }
-                ],
-                "transformations": [
-                    {
-                        "id": "merge",
-                        "options": {}
-                    }
-                ],
-                "options": {
-                    "showHeader": true
-                }
-            }
-        ],
-        "templating": {
-            "list": [
-                {
-                    "name": "datasource",
-                    "type": "datasource",
-                    "query": "prometheus",
-                    "current": {
-                        "text": "Prometheus",
-                        "value": "Prometheus"
-                    }
-                }
-            ]
-        },
-        "annotations": {
-            "list": [
-                {
-                    "datasource": "Prometheus",
-                    "enable": true,
-                    "expr": "changes(rule_detector_alerts_total[1m]) > 0",
-                    "name": "Alert Triggered",
-                    "tagKeys": "severity,rule_id",
-                    "titleFormat": "Alert: {{rule_id}}",
-                    "textFormat": "Severity: {{severity}}"
-                }
-            ]
+  "title": "Rule-Based DDoS Detector",
+  "uid": "rule-based-ddos-detector",
+  "tags": [
+    "ddos",
+    "security",
+    "rule-based",
+    "detection"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 16,
+  "version": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "📊 Cumulative Flows",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "sum(rule_detector_flows_processed_total) or vector(0)",
+          "legendFormat": "Total Processed",
+          "refId": "A"
         }
+      ],
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        }
+      }
     },
-    "overwrite": true
+    {
+      "id": 2,
+      "title": "📊 Flows Processed",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "rate(rule_detector_flows_processed_total[1m]) * 60",
+          "legendFormat": "Flows/min",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "🚨 Cumulative Alerts",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "sum(rule_detector_alerts_total) or vector(0)",
+          "legendFormat": "Total Alerts",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "graphMode": "area",
+        "colorMode": "background",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "yellow"
+              },
+              {
+                "value": 10,
+                "color": "red"
+              }
+            ]
+          },
+          "unit": "short",
+          "decimals": 0
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "⚡ Processing Speed",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "rate(rule_detector_processing_seconds_sum[1m]) / rate(rule_detector_processing_seconds_count[1m]) * 1000",
+          "legendFormat": "Avg ms/flow",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 2
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "📈 Flow Processing Rate",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "targets": [
+        {
+          "expr": "rate(rule_detector_flows_processed_total[1m]) * 60",
+          "legendFormat": "Total Flows/min",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(rule_detector_flows_matched_total[1m]) * 60",
+          "legendFormat": "Matched Flows/min",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(rule_detector_flows_to_ml_total[1m]) * 60",
+          "legendFormat": "To ML/min",
+          "refId": "C"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "Flows/min"
+        },
+        {
+          "format": "short"
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "legend": {
+        "show": true,
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "max": true
+      }
+    },
+    {
+      "id": 6,
+      "title": "🎯 Alerts by Severity",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "targets": [
+        {
+          "expr": "rate(rule_detector_alerts_total{severity=\"critical\"}[1m]) * 60",
+          "legendFormat": "Critical",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(rule_detector_alerts_total{severity=\"high\"}[1m]) * 60",
+          "legendFormat": "High",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(rule_detector_alerts_total{severity=\"medium\"}[1m]) * 60",
+          "legendFormat": "Medium",
+          "refId": "C"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "Alerts/min"
+        },
+        {
+          "format": "short"
+        }
+      ],
+      "lines": true,
+      "fill": 2,
+      "linewidth": 2,
+      "legend": {
+        "show": true,
+        "alignAsTable": true,
+        "current": true
+      },
+      "seriesOverrides": [
+        {
+          "alias": "Critical",
+          "color": "#F2495C"
+        },
+        {
+          "alias": "High",
+          "color": "#FF9830"
+        },
+        {
+          "alias": "Medium",
+          "color": "#FADE2A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "🪟 Window Statistics - Short (30s)",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "targets": [
+        {
+          "expr": "rule_detector_window_flows{window=\"short\"}",
+          "legendFormat": "Flows in Window",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "🪟 Window Statistics - Medium (60s)",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "targets": [
+        {
+          "expr": "rule_detector_window_flows{window=\"medium\"}",
+          "legendFormat": "Flows in Window",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "🔥 Alerts by Rule Name",
+      "type": "bargauge",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "expr": "sum by (rule_name) (increase(rule_detector_alerts_total[5m]))",
+          "legendFormat": "{{rule_name}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              },
+              {
+                "value": 5,
+                "color": "yellow"
+              },
+              {
+                "value": 10,
+                "color": "red"
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "⏱️ Processing Time Distribution",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(rule_detector_processing_seconds_bucket[5m]))",
+          "legendFormat": "p50 (median)",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(rule_detector_processing_seconds_bucket[5m]))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(rule_detector_processing_seconds_bucket[5m]))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "s",
+          "label": "Processing Time"
+        },
+        {
+          "format": "short"
+        }
+      ],
+      "lines": true,
+      "fill": 0,
+      "linewidth": 2,
+      "legend": {
+        "show": true,
+        "alignAsTable": true,
+        "avg": true,
+        "current": true
+      }
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {
+          "text": "Prometheus",
+          "value": "Prometheus"
+        }
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "datasource": "Prometheus",
+        "enable": true,
+        "expr": "changes(rule_detector_alerts_total[1m]) > 0",
+        "name": "Alert Triggered",
+        "tagKeys": "severity,rule_id",
+        "titleFormat": "Alert: {{rule_id}}",
+        "textFormat": "Severity: {{severity}}"
+      }
+    ]
+  }
 }

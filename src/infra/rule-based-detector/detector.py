@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 FLOWS_PROCESSED = Counter('rule_detector_flows_processed_total', 'Total flows processed')
 FLOWS_MATCHED = Counter('rule_detector_flows_matched_total', 'Flows matched by rules', ['rule_id'])
 FLOWS_TO_ML = Counter('rule_detector_flows_to_ml_total', 'Flows sent to ML')
-ALERTS_TRIGGERED = Counter('rule_detector_alerts_total', 'Alerts triggered', ['severity', 'rule_id'])
+ALERTS_TRIGGERED = Counter('rule_detector_alerts_total', 'Alerts triggered', ['severity', 'rule_id', 'rule_name'])
 WINDOW_FLOWS = Gauge('rule_detector_window_flows', 'Flows in window', ['window'])
 PROCESSING_TIME = Histogram('rule_detector_processing_seconds', 'Time to process flow')
 
@@ -210,7 +210,8 @@ class RuleBasedDetector:
             
             ALERTS_TRIGGERED.labels(
                 severity=rule_match.severity,
-                rule_id=rule_match.rule_id
+                rule_id=rule_match.rule_id,
+                rule_name=rule_match.name
             ).inc()
             
             logger.warning(

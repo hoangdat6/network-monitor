@@ -38,9 +38,11 @@ fi
 # Docker compose files
 COMPOSE_DATA_PIPELINE="./src/docker-compose.data-pipeline.yml"
 COMPOSE_NETWORK="./src/docker-compose.network.yml"
+COMPOSE_DETECTORS="./src/docker-compose.detectors.yml"
+COMPOSE_RESPONSE="./src/docker-compose.response.yml"
 COMPOSE_MONITORING="./src/docker-compose.monitoring.yml"
 COMPOSE_NGINX="./src/docker-compose.nginx.yml"
-COMPOSE_PROM_METRIC="./src/docker-compose.prom-metric.yml"
+# COMPOSE_PROM_METRIC="./src/docker-compose.prom-metric.yml"
 COMPOSE_RESPONSE="./src/docker-compose.response.yml"
 
 # Network name
@@ -178,10 +180,11 @@ start_data_pipeline() {
     
     docker-compose -f "$COMPOSE_DATA_PIPELINE" up -d
     
-    wait_for_service "ids_zookeeper" 20
-    wait_for_service "ids_kafka" 30
+    wait_for_service "ids_zookeeper" 30
+    sleep 10
+    wait_for_service "ids_kafka" 40
     
-    sleep 5
+    sleep 10
     print_success "Data pipeline đã khởi động"
 }
 
@@ -204,21 +207,34 @@ start_monitoring() {
 }
 
 start_network_detection() {
-    print_header "KHỞI ĐỘNG NETWORK DETECTION & RESPONSE (Flow, Detection, Response, Redis)"
+    print_header "KHỞI ĐỘNG NETWORK CAPTURE & DETECTION (Flow, Detectors)"
     
     docker-compose -f "$COMPOSE_NETWORK" up -d
+    docker-compose -f "$COMPOSE_DETECTORS" up -d
     
     wait_for_service "ids_cicflowmeter_v2" 15
     wait_for_service "ids_flow_processor" 15
-    wait_for_service "ids_ddos_detector" 20
+    wait_for_service "ids_ml_detector" 20
+    wait_for_service "ids_rule_detector" 20
+    
+    check_service_health "DDoS Detector" "http://localhost:${DDOS_DETECTOR_HOST_PORT}/metrics"
+    check_service_health "Rule Detector" "http://localhost:${RULE_DETECTOR_HOST_PORT}"
+    
+    print_success "Network capture & detection đã khởi động"
+}
+
+start_response_system() {
+    print_header "KHỞI ĐỘNG RESPONSE SYSTEM (Redis, Response Manager)"
+    
+    docker-compose -f "$COMPOSE_RESPONSE" up -d
+    
     wait_for_service "ids_redis" 10
     wait_for_service "ids_response_manager" 20
     wait_for_service "ids_response_manager_exporter" 10
     
-    check_service_health "DDoS Detector" "http://localhost:${DDOS_DETECTOR_HOST_PORT}/metrics"
     check_service_health "Response Manager" "http://localhost:${RESPONSE_MANAGER_HOST_PORT}/health"
     
-    print_success "Network detection & response đã khởi động"
+    print_success "Response system đã khởi động"
 }
 
 start_nginx() {
@@ -235,16 +251,16 @@ start_nginx() {
     print_success "Nginx đã khởi động"
 }
 
-start_metrics_processing() {
-    print_header "KHỞI ĐỘNG METRICS PROCESSING (Prometheus-Kafka Adapter, Metrics Flattener)"
+# start_metrics_processing() {
+#     print_header "KHỞI ĐỘNG METRICS PROCESSING (Prometheus-Kafka Adapter, Metrics Flattener)"
     
-    docker-compose -f "$COMPOSE_PROM_METRIC" up -d
+#     docker-compose -f "$COMPOSE_PROM_METRIC" up -d
     
-    wait_for_service "ids_prometheus_kafka_adapter" 15
-    wait_for_service "metrics-flattener" 15
+#     wait_for_service "ids_prometheus_kafka_adapter" 15
+#     wait_for_service "metrics-flattener" 15
     
-    print_success "Metrics processing đã khởi động"
-}
+#     print_success "Metrics processing đã khởi động"
+# }
 
 start_all() {
     print_header "KHỞI ĐỘNG TOÀN BỘ HỆ THỐNG"
@@ -267,11 +283,15 @@ start_all() {
     echo ""
     sleep 5
     
+    start_response_system
+    echo ""
+    sleep 5
+    
     start_nginx
     echo ""
     
-    start_metrics_processing
-    echo ""
+    # start_metrics_processing
+    # echo ""
     
     print_header "HỆ THỐNG ĐÃ KHỞI ĐỘNG HOÀN TẤT"
     show_status
@@ -285,16 +305,19 @@ start_all() {
 stop_all() {
     print_header "DỪNG TOÀN BỘ HỆ THỐNG"
     
-    print_info "Dừng Metrics Processing..."
-    docker-compose -f "$COMPOSE_PROM_METRIC" down
+    # print_info "Dừng Metrics Processing..."
+    # docker-compose -f "$COMPOSE_PROM_METRIC" down
     
     print_info "Dừng Nginx..."
     docker-compose -f "$COMPOSE_NGINX" down
     
-    print_info "Dừng Network Detection & Response..."
+    print_info "Dừng Response System..."
+    docker-compose -f "$COMPOSE_RESPONSE" down
+
+    print_info "Dừng Network Detection..."
+    docker-compose -f "$COMPOSE_DETECTORS" down
     docker-compose -f "$COMPOSE_NETWORK" down
-    # Also ensure response compose is down if it was used separately
-    # docker-compose -f "$COMPOSE_RESPONSE" down 2>/dev/null || true
+
     
     print_info "Dừng Monitoring..."
     docker-compose -f "$COMPOSE_MONITORING" down
@@ -316,10 +339,11 @@ stop_all_remove() {
         exit 0
     fi
     
-    docker-compose -f "$COMPOSE_PROM_METRIC" down -v
+    # docker-compose -f "$COMPOSE_PROM_METRIC" down -v
     docker-compose -f "$COMPOSE_NGINX" down -v
     docker-compose -f "$COMPOSE_NETWORK" down -v
-    # docker-compose -f "$COMPOSE_RESPONSE" down -v 2>/dev/null || true
+    docker-compose -f "$COMPOSE_DETECTORS" down -v
+    docker-compose -f "$COMPOSE_RESPONSE" down -v
     docker-compose -f "$COMPOSE_MONITORING" down -v
     docker-compose -f "$COMPOSE_DATA_PIPELINE" down -v
     
@@ -345,9 +369,14 @@ restart_service() {
             print_info "Khởi động lại Data Pipeline..."
             docker-compose -f "$COMPOSE_DATA_PIPELINE" restart
             ;;
-        network|detection|ddos|response)
-            print_info "Khởi động lại Network Detection & Response..."
+        network|detection|ddos|detectors)
+            print_info "Khởi động lại Network Detection..."
             docker-compose -f "$COMPOSE_NETWORK" restart
+            docker-compose -f "$COMPOSE_DETECTORS" restart
+            ;;
+        response)
+            print_info "Khởi động lại Response System..."
+            docker-compose -f "$COMPOSE_RESPONSE" restart
             ;;
         monitoring|prometheus|grafana)
             print_info "Khởi động lại Monitoring..."
@@ -357,10 +386,10 @@ restart_service() {
             print_info "Khởi động lại Nginx..."
             docker-compose -f "$COMPOSE_NGINX" restart
             ;;
-        metrics)
-            print_info "Khởi động lại Metrics Processing..."
-            docker-compose -f "$COMPOSE_PROM_METRIC" restart
-            ;;
+        # metrics)
+        #     print_info "Khởi động lại Metrics Processing..."
+        #     docker-compose -f "$COMPOSE_PROM_METRIC" restart
+        #     ;;
         *)
             print_error "Service không hợp lệ: $service"
             print_info "Các service có sẵn: data-pipeline, network, monitoring, nginx, metrics"
@@ -404,8 +433,14 @@ show_logs() {
         kafka|zookeeper)
             docker-compose -f "$COMPOSE_DATA_PIPELINE" logs -f --tail="$lines" "$service"
             ;;
-        cicflowmeter|cicflowmeter-v2|flow-processor|ddos-detector|response-manager|response-manager-exporter|redis)
+        cicflowmeter|cicflowmeter-v2|flow-processor)
             docker-compose -f "$COMPOSE_NETWORK" logs -f --tail="$lines" "$service"
+            ;;
+        response-manager|response-manager-exporter|redis|ids_response_manager|ids_redis)
+            docker-compose -f "$COMPOSE_RESPONSE" logs -f --tail="$lines" "$service"
+            ;;
+        ddos-detector|ids_ml_detector|ids_rule_detector|ml-detector|rule-detector)
+            docker-compose -f "$COMPOSE_DETECTORS" logs -f --tail="$lines" "$service"
             ;;
         prometheus|grafana|cadvisor|node-exporter|telegram-notifier)
             docker-compose -f "$COMPOSE_MONITORING" logs -f --tail="$lines" "$service"
@@ -413,9 +448,9 @@ show_logs() {
         nginx|nginx-vts-exporter)
             docker-compose -f "$COMPOSE_NGINX" logs -f --tail="$lines" "$service"
             ;;
-        prometheus-kafka-adapter|metrics-flattener)
-            docker-compose -f "$COMPOSE_PROM_METRIC" logs -f --tail="$lines" "$service"
-            ;;
+        # prometheus-kafka-adapter|metrics-flattener)
+        #     docker-compose -f "$COMPOSE_PROM_METRIC" logs -f --tail="$lines" "$service"
+        #     ;;
         *)
             docker logs -f --tail="$lines" "$service"
             ;;
@@ -434,6 +469,7 @@ show_urls() {
     echo ""
     echo -e "${GREEN}🔍 Detection & Response:${NC}"
     echo "  • DDoS Detector Metrics: http://localhost:${DDOS_DETECTOR_HOST_PORT}/metrics"
+    echo "  • Rule Detector Metrics: http://localhost:${RULE_DETECTOR_HOST_PORT}"
     echo "  • Response Manager API:  http://localhost:${RESPONSE_MANAGER_HOST_PORT}"
     echo "  • Response Metrics:      http://localhost:${RESPONSE_EXPORTER_PORT}/metrics"
     echo ""
@@ -482,6 +518,15 @@ health_check() {
         print_error "FAILED"
         all_healthy=false
     fi
+
+    # Check Rule Detector
+    echo -n "Rule Detector: "
+    if curl -sf http://localhost:${RULE_DETECTOR_HOST_PORT} > /dev/null 2>&1; then
+        print_success "OK"
+    else
+        print_error "FAILED"
+        all_healthy=false
+    fi
     
     # Check Response Manager
     echo -n "Response Manager: "
@@ -516,7 +561,8 @@ health_check() {
     local expected_containers=(
         "ids_zookeeper" 
         "ids_kafka" 
-        "ids_ddos_detector" 
+        "ids_ml_detector"
+        "ids_rule_detector" 
         "ids_flow_processor" 
         "ids_cicflowmeter_v2"
         "ids_redis"

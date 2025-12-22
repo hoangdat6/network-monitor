@@ -1,0 +1,337 @@
+{
+  "title": "ML DDoS Detector",
+  "uid": "ml-ddos-detector",
+  "tags": [
+    "ddos",
+    "security",
+    "ml",
+    "detection"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 16,
+  "version": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "🚨 Active Attacks",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "sum(ddos_active_attackers) or vector(0)",
+          "legendFormat": "Attackers",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "graphMode": "area",
+        "colorMode": "background",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "red"
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "🔍 Suspicious Flows",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "(sum(rate(ddos_flows_suspicious_total[1m])) * 60) or vector(0)",
+          "legendFormat": "Suspicious/min",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              },
+              {
+                "value": 10,
+                "color": "yellow"
+              },
+              {
+                "value": 50,
+                "color": "red"
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "📊 Total Processed",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "(sum(rate(ddos_flows_processed_total[1m])) * 60) or vector(0)",
+          "legendFormat": "Flows/min",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "⚡ Prediction Latency (p95)",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(ddos_prediction_seconds_bucket[5m])) * 1000",
+          "legendFormat": "ms",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": 0,
+                "color": "green"
+              },
+              {
+                "value": 50,
+                "color": "yellow"
+              },
+              {
+                "value": 200,
+                "color": "red"
+              }
+            ]
+          },
+          "unit": "ms",
+          "decimals": 1
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "📈 Flow Analysis Traffic",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "targets": [
+        {
+          "expr": "(sum(rate(ddos_flows_processed_total[1m])) * 60) or vector(0)",
+          "legendFormat": "Total Processed",
+          "refId": "A"
+        },
+        {
+          "expr": "(sum(rate(ddos_flows_suspicious_total[1m])) * 60) or vector(0)",
+          "legendFormat": "Suspicious Flows",
+          "refId": "B"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "Flows/min"
+        },
+        {
+          "format": "short"
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "legend": {
+        "show": true,
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "max": true
+      },
+      "seriesOverrides": [
+        {
+          "alias": "Suspicious Flows",
+          "color": "#F2495C"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "🎯 Alerts by Severity",
+      "type": "graph",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "targets": [
+        {
+          "expr": "(rate(ddos_attacks_detected_total[1m]) * 60) or vector(0)",
+          "legendFormat": "{{severity}}",
+          "refId": "A"
+        }
+      ],
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "Alerts/min"
+        },
+        {
+          "format": "short"
+        }
+      ],
+      "lines": true,
+      "fill": 2,
+      "linewidth": 2,
+      "legend": {
+        "show": true,
+        "alignAsTable": true,
+        "current": true
+      }
+    },
+    {
+      "id": 7,
+      "title": "🪟 Window Flow Volume",
+      "type": "stat",
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 12
+      },
+      "targets": [
+        {
+          "expr": "sum(ddos_flows_in_window) or vector(0)",
+          "legendFormat": "Flows in Analysis Window",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "📋 Recent DDoS Alerts Log",
+      "type": "logs",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "targets": [
+        {
+          "expr": "{job=\"ml-detector\"} |= \"ALERT\"",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "wrapLogMessage": true
+      }
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {
+          "text": "Prometheus",
+          "value": "Prometheus"
+        }
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "datasource": "Prometheus",
+        "enable": true,
+        "expr": "changes(ddos_attacks_detected_total[1m]) > 0",
+        "name": "ML Alert",
+        "titleFormat": "ML Alert: {{severity}}",
+        "textFormat": "New alert generated"
+      }
+    ]
+  }
+}
