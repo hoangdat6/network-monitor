@@ -48,7 +48,6 @@ class WindowManager:
                 'timestamp': timestamp
             })
             
-            # Cleanup old flows
             self._cleanup_window(window)
     
     def _cleanup_window(self, window: Dict):
@@ -102,23 +101,19 @@ class WindowManager:
             src_ip = flow.get('src_ip', 'unknown')
             protocol = flow.get('protocol', 0)
             
-            # Track IPs
             stats['unique_src_ips'].add(src_ip)
             stats['flows_by_ip'][src_ip] += 1
             
-            # Track packets
             fwd_pkts = flow.get('tot_fwd_pkts', 0)
             bwd_pkts = flow.get('tot_bwd_pkts', 0)
             total_pkts = fwd_pkts + bwd_pkts
             stats['packets_by_ip'][src_ip] += total_pkts
             
-            # Track ports
             dst_port = flow.get('dst_port')
             if dst_port:
                 stats['unique_dst_ports'].add(dst_port)
                 stats['dst_ports_by_ip'][src_ip].add(dst_port)
             
-            # Protocol-specific stats
             if protocol == 6:  # TCP
                 stats['tcp_packet_count'] += total_pkts
                 stats['syn_flag_count'] += flow.get('syn_flag_cnt', 0)
@@ -128,14 +123,18 @@ class WindowManager:
             elif protocol == 1:  # ICMP
                 stats['icmp_packet_count'] += total_pkts
         
-        # Calculate derived metrics
         total_syn_ack = stats['syn_flag_count'] + stats['ack_flag_count']
         stats['syn_ack_ratio'] = (
             stats['syn_flag_count'] / total_syn_ack 
             if total_syn_ack > 0 else 0
         )
         
-        # Per-IP metrics (max values)
+        stats['total_packets'] = (
+            stats['tcp_packet_count'] + 
+            stats['udp_packet_count'] + 
+            stats['icmp_packet_count']
+        )
+        
         if stats['flows_by_ip']:
             stats['flows_per_ip'] = max(stats['flows_by_ip'].values())
             stats['packets_per_ip'] = max(stats['packets_by_ip'].values())
@@ -147,11 +146,9 @@ class WindowManager:
             stats['packets_per_ip'] = 0
             stats['unique_dst_ports_per_ip'] = 0
         
-        # Convert sets to counts
         stats['unique_src_ips'] = len(stats['unique_src_ips'])
         stats['unique_dst_ports'] = len(stats['unique_dst_ports'])
         
-        # Remove internal dicts (not needed for rules)
         del stats['flows_by_ip']
         del stats['packets_by_ip']
         del stats['dst_ports_by_ip']

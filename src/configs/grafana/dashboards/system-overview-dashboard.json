@@ -75,7 +75,7 @@
             },
             "targets": [
                 {
-                    "expr": "(sum(increase(rule_detector_alerts_total[5m])) or vector(0)) + (sum(increase(ddos_attacks_detected_total[5m])) or vector(0))",
+                    "expr": "(sum(increase(rule_detector_alerts_total[5m])) or vector(0)) + (sum(increase(ddos_alerts_triggered_total[5m])) or vector(0))",
                     "legendFormat": "Alerts",
                     "refId": "A"
                 }
@@ -510,7 +510,7 @@
             },
             "targets": [
                 {
-                    "expr": "sum by (severity) (increase(rule_detector_alerts_total[15m]) + increase(ddos_attacks_detected_total[15m]))",
+                    "expr": "sum by (severity) (increase(rule_detector_alerts_total[15m]) + increase(ddos_alerts_triggered_total[15m]))",
                     "legendFormat": "{{severity}}",
                     "refId": "A"
                 }
@@ -548,7 +548,7 @@
             },
             "targets": [
                 {
-                    "expr": "sum(increase(ddos_attacks_detected_total[15m]))",
+                    "expr": "sum(increase(ddos_alerts_triggered_total[15m]))",
                     "legendFormat": "DDoS Attacks",
                     "refId": "A"
                 }
@@ -591,7 +591,7 @@
                     "refId": "A"
                 },
                 {
-                    "expr": "sum by (severity) (rate(ddos_attacks_detected_total[1m]))",
+                    "expr": "sum by (severity) (rate(ddos_alerts_triggered_total[1m]))",
                     "legendFormat": "ML-Based: {{severity}}",
                     "refId": "B"
                 }

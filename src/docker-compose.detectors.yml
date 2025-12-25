@@ -16,12 +16,17 @@ services:
       - ALERT_COOLDOWN=${DDOS_ALERT_COOLDOWN}
       - METRICS_PORT=${DDOS_METRICS_PORT}
     volumes:
-      - ./models/final_model:/models:ro    # Mount final_model folder with XGBoost reduced model
+      - ./models/final_model:/models:ro 
     ports:
       - "${DDOS_DETECTOR_HOST_PORT}:${DDOS_DETECTOR_CONTAINER_PORT}"                        # Prometheus metrics
     restart: always
     networks:
       - ids-network
+    # Resource limits (standalone docker-compose mode)
+    mem_limit: 2g              # Giới hạn tối đa 2GB RAM
+    mem_reservation: 512m      # Đảm bảo tối thiểu 512MB RAM
+    cpus: 2.0                  # Giới hạn tối đa 2.0 CPU cores
+    cpu_shares: 512            # CPU priority (512 = normal, 1024 = high)
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${DDOS_DETECTOR_CONTAINER_PORT}"]
       interval: 30s

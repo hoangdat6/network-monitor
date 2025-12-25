@@ -62,7 +62,7 @@ class TelegramNotifier:
         
         # Alert tracking
         self.alert_history = deque(maxlen=100)
-        self.last_sent_time = None
+        self.last_sent_per_rule = {}  # Track last sent time per rule_id
         self.seen_alert_ids = set()
         self.pending_alerts = []
         self.attack_summary = defaultdict(dict)
@@ -143,6 +143,7 @@ class TelegramNotifier:
     def should_send_alert(self, alert):
         """Quyết định có nên gửi alert không"""
         alert_id = alert.get('alert_id', 'unknown')
+        rule_id = alert.get('rule_id', 'unknown')  # Get rule_id for per-rule tracking
         now = datetime.now()
         
         # 1. Deduplication
@@ -175,11 +176,12 @@ class TelegramNotifier:
                 )
             return False, 'rate_limit'
         
-        # 4. Min interval
-        if self.last_sent_time:
-            elapsed = (now - self.last_sent_time).total_seconds()
+        # 4. Min interval - CHECK PER RULE_ID
+        if rule_id in self.last_sent_per_rule:
+            last_sent = self.last_sent_per_rule[rule_id]
+            elapsed = (now - last_sent).total_seconds()
             if elapsed < self.min_interval_seconds:
-                return False, 'min_interval'
+                return False, f'min_interval_{rule_id}'
         
         # 5. Always allow CRITICAL
         if alert.get('severity', '').upper() == 'CRITICAL':
@@ -411,9 +413,10 @@ class TelegramNotifier:
         """Xử lý alert với anti-spam logic"""
         severity = alert.get('severity', 'unknown')
         alert_id = alert.get('alert_id', 'unknown')
+        rule_id = alert.get('rule_id', 'unknown')
         
         ALERTS_RECEIVED.labels(severity=severity).inc()
-        logger.info(f"Processing: {alert_id}")
+        logger.info(f"Processing: {alert_id} (Rule: {rule_id})")
         
         try:
             should_send, reason = self.should_send_alert(alert)
@@ -425,9 +428,10 @@ class TelegramNotifier:
                 
                 if success:
                     ALERTS_SENT.labels(severity=severity).inc()
-                    logger.info(f"Sent: {alert_id}")
+                    logger.info(f"Sent: {alert_id} (Rule: {rule_id})")
                     self.alert_history.append(datetime.now())
-                    self.last_sent_time = datetime.now()
+                    # Update per-rule tracking
+                    self.last_sent_per_rule[rule_id] = datetime.now()
                     self.seen_alert_ids.add(alert_id)
             else:
                 # Suppress and aggregate

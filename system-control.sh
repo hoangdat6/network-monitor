@@ -374,6 +374,14 @@ restart_service() {
             docker-compose -f "$COMPOSE_NETWORK" restart
             docker-compose -f "$COMPOSE_DETECTORS" restart
             ;;
+        ml-detector|ml-detect|ids_ml_detector)
+            print_info "Khởi động lại ML Detector..."
+            docker-compose -f "$COMPOSE_DETECTORS" restart ml-detector
+            ;;
+        rule-detector|rule-detect|ids_rule_detector)
+            print_info "Khởi động lại Rule Detector..."
+            docker-compose -f "$COMPOSE_DETECTORS" restart rule-detector
+            ;;
         response)
             print_info "Khởi động lại Response System..."
             docker-compose -f "$COMPOSE_RESPONSE" restart
@@ -392,7 +400,7 @@ restart_service() {
         #     ;;
         *)
             print_error "Service không hợp lệ: $service"
-            print_info "Các service có sẵn: data-pipeline, network, monitoring, nginx, metrics"
+            print_info "Các service có sẵn: data-pipeline, network, detectors, ml-detector, rule-detector, monitoring, nginx, response"
             exit 1
             ;;
     esac

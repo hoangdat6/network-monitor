@@ -74,7 +74,7 @@ class RuleEngine:
         
         return None
     
-    def check_aggregation(self, window_stats: Dict) -> Optional[RuleMatch]:
+    def check_aggregation(self, window_stats: Dict) -> List[RuleMatch]:
         """
         Check if window statistics match any aggregation rules
         
@@ -82,8 +82,10 @@ class RuleEngine:
             window_stats: Aggregated statistics from WindowManager
             
         Returns:
-            RuleMatch if matched, None otherwise
+            List of RuleMatch objects for all matched rules (can be empty)
         """
+        matches = []
+        
         for rule in self.aggregation_rules:
             if self._evaluate_aggregation_rule(rule, window_stats):
                 matched_conditions = [
@@ -91,16 +93,16 @@ class RuleEngine:
                     for cond in rule['conditions']
                 ]
                 
-                return RuleMatch(
+                matches.append(RuleMatch(
                     rule_id=rule['id'],
                     name=rule['name'],
                     severity=rule['severity'],
                     description=rule['description'],
                     action=rule['action'],
                     matched_conditions=matched_conditions
-                )
+                ))
         
-        return None
+        return matches
     
     def _evaluate_per_flow_rule(self, rule: Dict, flow_data: Dict) -> bool:
         """

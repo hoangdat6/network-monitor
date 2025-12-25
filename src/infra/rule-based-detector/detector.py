@@ -157,17 +157,18 @@ class RuleBasedDetector:
             # Update metrics
             WINDOW_FLOWS.labels(window=window_name).set(stats.get('total_flows', 0))
             
-            # Check aggregation rules
-            rule_match = self.rule_engine.check_aggregation(stats)
+            # Check aggregation rules (returns list of matches)
+            rule_matches = self.rule_engine.check_aggregation(stats)
             
-            if rule_match:
+            if rule_matches:
                 # Get top attackers
                 top_attackers = self.window_manager.get_top_attackers(window_name)
                 attacker_ips = [a['ip'] for a in top_attackers]
                 
-                # Send alert with window stats
-                self._send_alert(rule_match, None, attacker_ips, stats)
-                FLOWS_MATCHED.labels(rule_id=rule_match.rule_id).inc()
+                # Send alert for EACH matched rule
+                for rule_match in rule_matches:
+                    self._send_alert(rule_match, None, attacker_ips, stats)
+                    FLOWS_MATCHED.labels(rule_id=rule_match.rule_id).inc()
     
     def _send_alert(self, rule_match: RuleMatch, flow_data: Optional[Dict] = None,
                     attacker_ips: list = None, window_stats: dict = None):
